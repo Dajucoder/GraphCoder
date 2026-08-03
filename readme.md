@@ -4,61 +4,132 @@
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![Powered by LangGraph](https://img.shields.io/badge/Powered%20by-LangGraph-orange.svg)](https://python.langchain.com/docs/langgraph/)
 
-> **GraphCoder (图灵智开)** 是一款基于 `LangGraph` 构建的多智能体协同编程系统（Multi-Agent AI Coding System）。  
-> 
-> 💡 **寓意**：英文名直指 **Graph + Coder**；中文名“图灵”一语双关，既致敬计算机科学之父图灵（代表 AI），又点出核心底层“图（Graph）”架构，“智开”即智能开发。
+> **GraphCoder（图灵智开）** 是基于 LangGraph 的多智能体自动化编程系统。  
+> 通过“需求分析 / 架构设计 / 编码 / 审查 / 测试”的图状协作，实现可追溯、可扩展、可回环的软件生成流。  
+> 中文名双关“图灵”与“图（Graph）”，既致敬 AI 源头，也强调核心抽象是“图驱动”。
 
-## 参考项目
-[easy-langent](https://github.com/datawhalechina/easy-langent)
-[hello-agents](https://github.com/datawhalechina/hello-agents)
-[opencode](https://github.com/anomalyco/opencode)
+## 🎯 近期目标（长文先给概述）
 
-## 🚀 快速开始 (Getting Started)
+近期目标是把 GraphCoder 从“脚本示例”重构为**可运行最小骨架 + 可扩展真实分模块项目**，不中断现有演示脚本。
 
-本项目推荐使用 `conda` 创建环境；作者当前使用 `Python 3.13`。
+1. 让 README 精确对应目录与运行方式。
+2. 将核心代码分层为：
+   - `src/core`
+   - `src/agents`
+   - `src/nodes`
+   - `src/data`
+   - `src/api`
+   - `src/prompts`
+   - `src/utils`
+   - `src/tests`
+3. 给出最小运行入口，并可持续接入 LangGraph 工作流。
 
+## 📂 项目结构（当前可预期）
+
+```
+GraphCoder/
+├── .env
+├── .env.example
+├── .gitignore
+├── readme.md
+├── config.py
+├── main.py
+├── requirements.txt
+│
+└── src/
+    ├── core/          # 状态 schema、图构建、入口封装
+    ├── agents/        # PM / Architect / Coder / Reviewer / QA 定义
+    ├── nodes/         # LangGraph 节点实现
+    ├── data/          # 需求读取 / 产出落盘 / 日志
+    ├── api/           # CLI / 脚本 / 未来 HTTP 入口（逐步接入）
+    ├── prompts/       # 提示词模板
+    ├── utils/         # 辅助函数
+    └── tests/         # 单元与集成测试
+```
+
+## 🏗️ 架构概览（核心图谱）
+
+```
+[User Request]
+      │
+      ▼
+┌──────────────────────────────────────────────────┐
+│                 GraphCoder Core                   │
+│          LangGraph State Machine Mesh             │
+│  ┌────────────┐   ┌────────────┐   ┌───────────┐  │
+│  │  PM 节点    │──▶│  AD 节点   │──▶│ Dev 节点  │  │
+│  └────────────┘   └────────────┘   └─────┬─────┘  │
+│        ▲                                │        │
+│        │                    ┌────────────┴──────┐ │
+│        └────────────────────│ Reviewer 节点    │◀┘
+│                              └───────┬─────────┘
+│                                      │
+│                              ┌───────▼─────────┐
+│                              │  QA 节点        │
+│                              └───────┬─────────┘
+│                                      │
+│                            [可回环修复流程]
+└──────────────────────────────────────────────────┘
+                        │
+                        ▼
+                 [Final Output]
+```
+
+- **PM：** 需求澄清、输出 PRD 与成功标准；
+- **AD：** 系统设计、技术选型与架构分片；
+- **Dev：** 编码实现、修改建议时的重写；
+- **Reviewer：** 静态审查与结构化反馈；
+- **QA：** 测试定义、质量门禁、是否放行。
+
+## 🚀 快速开始（Getting Started）
+
+### 1. 创建 Python 环境
 ```bash
-conda create -n graphcoder python=3.13
+conda create -n graphcoder python=3.13 -y
 conda activate graphcoder
 ```
 
----
+### 2. 安装依赖
+```bash
+pip install -r requirements.txt
+```
 
-## 📖 简介 (Introduction)
+### 3. 配置环境变量
+```bash
+cp .env.example .env
+```
 
-传统的 AI 编程助手通常是单向对话式的，而在真实的软件开发中，我们需要**需求分析、架构设计、编码、代码审查（Code Review）和测试**等多角色的不断循环与反馈。
+最小必须配置：
+```
+API_BASE_URL=https://api.openai.com/v1
+API_KEY=
+MODEL_NAME=gpt-4o-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=
+TEMPERATURE=0.2
+MAX_TOKENS=4096
+LOG_LEVEL=INFO
+DEBUG=false
+```
 
-**GraphCoder** 充分利用了 [LangGraph](https://python.langchain.com/docs/langgraph/) 强大的状态管理和循环（Cycles）能力。我们将软件开发的各个环节抽象为图谱中的**节点（Nodes）**，将 Agent 之间的协作与信息流转定义为**边（Edges）**，从而打造出一个具备**自纠错能力**、**高度可控**的自动化软件开发流水线。
+## 🏃 运行
 
-## ✨ 核心特性 (Key Features)
+### 运行最小示例
+```bash
+python main.py
+```
 
-*   🤖 **多智能体角色协同 (Multi-Agent Collaboration)**
-    *   内置多种 Agent 角色（如：产品经理、架构师、高级开发工程师、测试工程师），各司其职，协同完成复杂项目。
-*   🕸️ **基于图的工作流 (Graph-based Workflow)**
-    *   借助 LangGraph 的底层能力，支持复杂的循环工作流（例如：编码 -> 审查 -> 报错 -> 重新编码），告别线性生成的脆弱性。
-*   💾 **持久化状态与记忆 (Stateful & Memory)**
-    *   在整个开发生命周期中，保持对项目上下文（Context）、依赖树和历史版本的完整状态追踪。
-*   🔌 **极简的拓展性 (Highly Extensible)**
-    *   你可以轻松自定义新的 Agent 节点并将其接入到当前的开发图谱（Graph）中。
+当前最小示例用于验证 LLM 调用链路，后续会替换为完整的 LangGraph 运行入口。
 
-## 🏗️ 架构概览 (Architecture)
+## 🔧 常见问题
 
-GraphCoder 的核心处理图谱如下所示：
+### PowerShell 禁止加载激活脚本
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
 
-```text
-[User Request] 
-      │
-      ▼
-(PM Agent) ──> 提取需求 & 编写 PRD 
-      │
-      ▼
-(Architect Agent) ──> 系统设计 & 技术栈选择
-      │
-      ▼
-(Coder Agent) <──┐
-      │          │ (Self-Correction Loop)
-      ▼          │
-(Reviewer Agent) ┴──> 审查代码，如果不通过则打回重写
-      │
-      ▼
-[Final Code Output]
+### 依赖报 `No module named`
+确认已进入 `graphcoder` 环境后，重新执行第二步安装。
+
+### 当前还不能直接生成完整项目
+当前为最小骨架；完整自动化能力会逐步在 `src/agents`、`src/nodes`、`src/api` 中落地。

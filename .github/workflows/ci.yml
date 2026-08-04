@@ -19,11 +19,12 @@ jobs:
 
       - name: Install dependencies
         run: |
+          uv venv
           uv pip install -r requirements.txt
           uv pip install ruff
 
       - name: Run ruff
-        run: ruff check src/
+        run: uv run ruff check src/
 
   typecheck:
     name: Type Check
@@ -37,11 +38,12 @@ jobs:
 
       - name: Install dependencies
         run: |
+          uv venv
           uv pip install -r requirements.txt
           uv pip install mypy
 
       - name: Run mypy
-        run: mypy src/ || true
+        run: uv run mypy src/ || true
 
   test:
     name: Tests
@@ -55,13 +57,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          uv venv
           uv pip install -r requirements.txt
           uv pip install pytest
 
       - name: Run tests
         run: |
           if [ -d src/tests ] && ls src/tests/test_*.py 1>/dev/null 2>&1; then
-            pytest src/tests/ -v
+            uv run pytest src/tests/ -v
           else
             echo "No tests found — skipping"
           fi

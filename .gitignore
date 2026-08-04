@@ -43,6 +43,7 @@ htmlcov/
 .idea/
 .vscode/
 *.iml
+.claude/
 
 # OS-generated files
 .DS_Store

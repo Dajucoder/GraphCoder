@@ -18,9 +18,11 @@ Creates and returns a configured `ChatOpenAI` instance.
 | `OPENAI_API_KEY` | — | API authentication key |
 | `OPENAI_BASE_URL` | — | API base URL |
 | `TEMPERATURE` | `1.0` | Sampling temperature |
-| `MAX_TOKENS` | `256000` | Maximum tokens per response |
 
 **Returns:** `ChatOpenAI` instance with `max_retries=3` and no timeout.
+
+> **Note:** `MAX_TOKENS` is loaded by `config.py` but is not consumed by
+> `build_llm()` yet. It is reserved for future generation settings.
 
 **Example:**
 ```python
@@ -84,6 +86,6 @@ Module-level configuration loaded from environment variables.
 | `base_url` | `str \| None` | — | OpenAI-compatible API base URL |
 | `model_name` | `str` | `step-3.7-flash` | Model identifier |
 | `temperature` | `float` | `1.0` | LLM temperature |
-| `max_tokens` | `int` | `256000` | Max response tokens |
+| `max_tokens` | `int` | `256000` | Max response tokens (reserved; not yet used by the LLM factory) |
 
 All variables are loaded from `.env` via `python-dotenv` at import time.

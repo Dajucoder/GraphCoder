@@ -4,16 +4,23 @@
 
 GraphCoder aims to become a **production-grade multi-agent coding platform** that transforms natural-language requirements into production-ready software through a transparent, traceable, and iterable agent pipeline.
 
+## Current Status
+
+As of August 2026, GraphCoder is a runnable minimal skeleton: modular `src/`
+layout, environment-driven configuration, an LLM factory, a simple question
+chain, and a CLI entry point. GitHub Actions CI runs lint, type checking,
+tests, and a verified-secret scan.
+
 ---
 
 ## Release History
 
-### v0.1.0 — Project Scaffold (Jul 2025)
+### v0.1.0 — Project Scaffold (Jul 2026)
 - [x] Initial repository setup
 - [x] Single-file LLM call chain
 - [x] README with architecture overview
 
-### v0.2.0 — Modular Skeleton (Aug 2025)
+### v0.2.0 — Modular Skeleton (Aug 2026)
 - [x] Reorganized into `src/` package structure
 - [x] LLM factory (`build_llm`)
 - [x] Simple chain node (placeholder)
@@ -26,7 +33,7 @@ GraphCoder aims to become a **production-grade multi-agent coding platform** tha
 
 ## Upcoming Releases
 
-### v0.3.0 — State Graph Foundation *(target: Q4 2025)*
+### v0.3.0 — State Graph Foundation *(target: Q4 2026)*
 
 **Goal:** Build the first functional LangGraph state machine with the full agent mesh.
 
@@ -46,7 +53,7 @@ GraphCoder aims to become a **production-grade multi-agent coding platform** tha
 
 ---
 
-### v0.4.0 — Output & Persistence *(target: Q1 2026)*
+### v0.4.0 — Output & Persistence *(target: Q1 2027)*
 
 **Goal:** Persist all outputs and support artifact management.
 
@@ -63,7 +70,7 @@ GraphCoder aims to become a **production-grade multi-agent coding platform** tha
 
 ---
 
-### v0.5.0 — HTTP API Layer *(target: Q1 2026)*
+### v0.5.0 — HTTP API Layer *(target: Q2 2027)*
 
 **Goal:** Expose GraphCoder as a REST API for integration with IDEs and other tools.
 
@@ -80,7 +87,7 @@ GraphCoder aims to become a **production-grade multi-agent coding platform** tha
 
 ---
 
-### v1.0.0 — Production Ready *(target: Q2 2026)*
+### v1.0.0 — Production Ready *(target: Q4 2027)*
 
 **Goal:** First stable release with all core features.
 

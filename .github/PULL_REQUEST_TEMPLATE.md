@@ -32,6 +32,7 @@ Closes #
 <!-- Mark completed items with an "x" -->
 
 - [ ] My code follows the project's style guidelines (`ruff check src/` passes)
+- [ ] `mypy src/` reports no new issues (where applicable)
 - [ ] I have performed a self-review of my own code
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally

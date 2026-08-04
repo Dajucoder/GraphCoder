@@ -3,11 +3,15 @@
 Each agent in GraphCoder is a specialized node in the LangGraph state machine.
 This document describes the role, inputs, outputs, and behavior of each agent.
 
+> **Status:** The agent mesh below is the target architecture. None of the
+> `src/agents/*.py` modules or `src/prompts/*_prompt.py` templates exist yet;
+> the file paths shown are planned locations.
+
 ---
 
 ## 1. PM (Product Manager) Agent
 
-**File:** `src/agents/pm.py`
+**File:** `src/agents/pm.py` *(planned)*
 
 ### Purpose
 Transform raw user requirements into a structured **Product Requirements Document (PRD)**.
@@ -36,13 +40,13 @@ Transform raw user requirements into a structured **Product Requirements Documen
 4. Mark the requirement as "ready for architecture" when complete
 
 ### Prompt Template
-See `src/prompts/pm_prompt.py`
+See `src/prompts/pm_prompt.py` *(planned)*
 
 ---
 
 ## 2. Architect (AD) Agent
 
-**File:** `src/agents/architect.py`
+**File:** `src/agents/architect.py` *(planned)*
 
 ### Purpose
 Transform a PRD into a concrete **system architecture and technical design**.
@@ -74,13 +78,13 @@ Transform a PRD into a concrete **system architecture and technical design**.
 5. Output a structured architecture document
 
 ### Prompt Template
-See `src/prompts/architect_prompt.py`
+See `src/prompts/architect_prompt.py` *(planned)*
 
 ---
 
 ## 3. Developer (Dev) Agent
 
-**File:** `src/agents/developer.py`
+**File:** `src/agents/developer.py` *(planned)*
 
 ### Purpose
 Generate implementation code based on the architecture design.
@@ -113,13 +117,13 @@ Generate implementation code based on the architecture design.
 5. Include a generated README with setup instructions
 
 ### Prompt Template
-See `src/prompts/developer_prompt.py`
+See `src/prompts/developer_prompt.py` *(planned)*
 
 ---
 
 ## 4. Reviewer Agent
 
-**File:** `src/agents/reviewer.py`
+**File:** `src/agents/reviewer.py` *(planned)*
 
 ### Purpose
 Perform static code review and identify issues before QA.
@@ -151,13 +155,13 @@ Perform static code review and identify issues before QA.
 5. Set `review_passed` to `True` only if no blockers remain
 
 ### Prompt Template
-See `src/prompts/reviewer_prompt.py`
+See `src/prompts/reviewer_prompt.py` *(planned)*
 
 ---
 
 ## 5. QA Agent
 
-**File:** `src/agents/qa.py`
+**File:** `src/agents/qa.py` *(planned)*
 
 ### Purpose
 Design tests and determine if the implementation is ready.
@@ -191,7 +195,7 @@ Design tests and determine if the implementation is ready.
 5. Enforce a maximum retry count (e.g., 3) to prevent infinite loops
 
 ### Prompt Template
-See `src/prompts/qa_prompt.py`
+See `src/prompts/qa_prompt.py` *(planned)*
 
 ---
 
@@ -207,3 +211,7 @@ PM ──▶ Architect ──▶ Developer ──▶ Reviewer ──▶ QA
 ```
 
 When QA fails, the Developer receives `review_feedback` and `qa_feedback` in its state input.
+
+> **Note:** This communication flow is part of the target design. The current
+> repository only wires up the simple chain node; the graph edges above will be
+> implemented with the `StateGraph` in `src/core/`.

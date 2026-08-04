@@ -5,7 +5,24 @@ All notable changes to GraphCoder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] — 2025-08-04
+## [Unreleased]
+
+### Changed
+- Align `.env.example`, README, and API docs with the environment variables
+  actually read by `config.py`.
+- Mark planned agent, node, and data-layer modules as planned across the docs.
+- Update release dates in CHANGELOG and roadmap to match repository history.
+
+### Fixed
+- CI: create a uv virtual environment before installing dependencies so the
+  Lint, Type Check, and Tests jobs no longer fail at install time.
+- Lint and typecheck: remove an unused import, sort imports, and pass `api_key`
+  to `ChatOpenAI` as a `SecretStr`.
+- SECURITY.md: reflect that CI now runs a verified-secret scan with truffleHog.
+
+---
+
+## [0.2.0] — 2026-08-04
 
 ### Added
 - **Package restructuring:** reorganized codebase into modular `src/` layout:
@@ -15,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `src/data/` — I/O layer for requirements and artifacts
   - `src/api/` — CLI entry point and future HTTP server
   - `src/prompts/` — reusable prompt templates
-  - `src/utils/` — helper utilities (LLM factory, logging)
+  - `src/utils/` — helper utilities (LLM factory)
   - `src/tests/` — unit and integration test suite
 - **LLM factory:** `src/utils/llm.py:build_llm()` — centralized, config-driven `ChatOpenAI` factory
 - **Simple chain node:** `src/nodes/simple_chain.py` — minimal LLM call chain for validating the pipeline
@@ -34,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.0] — 2025-07-28
+## [0.1.0] — 2026-07-30
 
 ### Added
 - Initial project scaffold

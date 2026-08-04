@@ -4,6 +4,11 @@
 
 GraphCoder is a **multi-agent automated coding system** built on [LangGraph](https://python.langchain.com/docs/langgraph/). It orchestrates a directed graph of specialized AI agents — PM, Architect, Developer, Reviewer, and QA — to transform natural-language requirements into tested, reviewed code.
 
+> **Status:** This is the target architecture. The current repository is a
+> minimal skeleton: `src/api/cli.py` drives a single LangChain chain via
+> `src/nodes/simple_chain.py`, and the full agent mesh (`StateGraph`, agents,
+> data layer) is planned but not yet implemented.
+
 ```
 ┌──────────────┐
 │  User Input  │  (natural-language requirement)
@@ -48,7 +53,7 @@ GraphCoder is a **multi-agent automated coding system** built on [LangGraph](htt
 
 ### State Graph
 
-The central abstraction is a **LangGraph `StateGraph`** with a shared `TypedDict` state. Every node (agent) reads from and writes to the same state object, enabling clean data flow without explicit message passing.
+The central abstraction is a **LangGraph `StateGraph`** with a shared `TypedDict` state. Every node (agent) reads from and writes to the same state object, enabling clean data flow without explicit message passing. *(Target design — not yet implemented.)*
 
 ### Agents
 
@@ -65,9 +70,12 @@ Each agent is a LangGraph node function that:
 | Reviewer | Code review, feedback | Source code | Review comments |
 | QA | Test design, quality gate | Code + Review | Test plan + Pass/Fail |
 
+The agents above are specifications only; see [AGENTS.md](AGENTS.md). Their
+modules do not exist yet and will be added under `src/agents/`.
+
 ### Looping
 
-If QA fails, the graph loops back to the Developer with QA feedback. This continues until:
+If QA fails, the graph loops back to the Developer with QA feedback. This continues until: *(Target design — not yet implemented.)*
 - QA passes (max iterations enforced), or
 - Max retries reached → escalation to user
 
@@ -93,42 +101,40 @@ GraphCoder/
 │   ├── API_REFERENCE.md     # API docs
 │   └── ROADMAP.md           # Project roadmap
 │
+├── .github/                 # Community templates & CI
+│   ├── ISSUE_TEMPLATE/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   └── workflows/ci.yml
+│
 ├── src/
 │   ├── __init__.py
-│   ├── core/                # State schema, graph builder
-│   │   └── __init__.py
-│   ├── agents/              # Agent definitions
-│   │   ├── pm.py
-│   │   ├── architect.py
-│   │   ├── developer.py
-│   │   ├── reviewer.py
-│   │   └── qa.py
-│   ├── nodes/               # LangGraph nodes
-│   │   ├── simple_chain.py  # Placeholder chain node
-│   │   └── ...              # Production nodes
-│   ├── prompts/             # Prompt templates
-│   │   └── __init__.py
-│   ├── data/                # I/O layer
-│   │   └── __init__.py
 │   ├── api/                 # Entry points
-│   │   ├── cli.py           # CLI runner
-│   │   └── ...              # Future: HTTP server
+│   │   ├── __init__.py
+│   │   └── cli.py           # CLI runner (implemented)
+│   ├── nodes/               # LangGraph nodes
+│   │   ├── __init__.py
+│   │   └── simple_chain.py  # Placeholder chain node (implemented)
 │   ├── utils/               # Utilities
-│   │   ├── llm.py           # LLM factory
-│   │   └── ...              # Logging, etc.
-│   └── tests/               # Tests
+│   │   ├── __init__.py
+│   │   └── llm.py           # LLM factory (implemented)
+│   ├── core/                # Planned: state schema, graph builder
+│   │   └── __init__.py
+│   ├── agents/              # Planned: PM / Architect / Developer / Reviewer / QA
+│   │   └── __init__.py
+│   ├── data/                # Planned: I/O layer
+│   │   └── __init__.py
+│   ├── prompts/             # Planned: prompt templates
+│   │   └── __init__.py
+│   └── tests/               # Planned: unit and integration tests
 │       └── __init__.py
-│
-└── .github/                 # Community templates & CI
-    ├── ISSUE_TEMPLATE/
-    ├── PULL_REQUEST_TEMPLATE.md
-    └── workflows/
-        └── ci.yml
 ```
 
 ---
 
 ## Data Flow
+
+The flow below is the target design. Today the CLI only invokes the simple
+chain; the `GraphCore` state builder and agent loop are not implemented yet.
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐

@@ -2,6 +2,10 @@
 
 This document explains how to implement LangGraph nodes for GraphCoder.
 
+> **Status:** Only the `Simple Chain` node exists today. The graph builder
+> (`src/core/graph.py`) and production agent nodes are planned; the examples
+> below describe the intended patterns for those future nodes.
+
 ## What is a Node?
 
 In LangGraph, a **node** is a Python function that:
@@ -36,7 +40,7 @@ Every node should follow this pattern:
 
 ## Registering a Node
 
-Nodes are registered in the graph builder (to be implemented in `src/core/graph.py`):
+When the graph builder is added (planned in `src/core/graph.py`), nodes will be registered like this:
 
 ```python
 from langgraph.graph import StateGraph, END

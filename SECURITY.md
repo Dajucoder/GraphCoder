@@ -70,7 +70,7 @@ GraphCoder unless you understand the implications:
 |------|--------|
 | Input sanitization | ⚠️ Minimal — user input is passed directly to prompts |
 | Output sandboxing | ⚠️ None — generated code is not executed in isolation |
-| Secret scanning | ⚠️ Not implemented |
+| Secret scanning | ✅ CI only — truffleHog scans pushes/PRs for verified secrets |
 | Dependency pinning | ⚠️ Loose — see `requirements.txt` |
 | Authentication/Authorization | ⚠️ Not applicable (local CLI only) |
 

@@ -52,7 +52,7 @@
 
 1. Fork 本项目到你的 GitHub 账户
 2. 创建功能分支：`git checkout -b feat/my-new-feature`
-3. 编写代码，确保通过 lint 和测试：`ruff check src/`
+3. 编写代码，确保通过 lint 和类型检查：`ruff check src/`；如有测试则运行 `pytest src/tests/`
 4. 提交并推送：`git push origin feat/my-new-feature`
 5. 从你的 Fork 向 `main` 分支提交 Pull Request
 
@@ -89,6 +89,16 @@ cp .env.example .env
 python main.py
 ```
 
+### CI 检查
+
+每个推送到 `main` 的提交，以及针对 `main` 的 Pull Request，都会触发
+[GitHub Actions](.github/workflows/ci.yml)：
+
+- **Lint：** `ruff check src/`
+- **Type Check：** `mypy src/`（当前 CI 中失败不会阻断合并）
+- **Tests：** `pytest src/tests/`（目录中没有测试文件时自动跳过）
+- **Security：** truffleHog 对已确认的密钥进行扫描
+
 ### 推荐工具
 
 | 工具 | 用途 |
@@ -102,7 +112,7 @@ python main.py
 
 ## 代码规范
 
-- **Python 版本：** 3.13
+- **Python 版本：** 3.13+
 - **导入风格：** 使用绝对导入（`from src.utils.llm import build_llm`），不使用 `sys.path` 修改
 - **代码位置：**
   - 新 Agent 代码 → `src/agents/`
@@ -111,7 +121,7 @@ python main.py
   - 辅助函数 → `src/utils/`
 - **类型提示：** 所有公共函数应包含类型注解
 - **文档字符串：** 公共 API 使用 Google 风格 docstring
-- **行长度：** 不超过 100 字符（ruff 会自动检查）
+- **行长度：** 遵循 ruff 默认规则（88 字符），目前项目未自定义 ruff 配置
 - **命名：** 类使用 `PascalCase`，函数/变量使用 `snake_case`，常量使用 `UPPER_SNAKE_CASE`
 
 ### 示例
@@ -206,7 +216,7 @@ Closes #12
 
 1. 更新 `CHANGELOG.md` 和版本号
 2. 创建 Git tag：`git tag v0.x.0 && git push --tags`
-3. GitHub Actions 自动构建并发布到 PyPI
+3. 发布到 PyPI 的自动化流程尚未接入，当前需手动构建并发布
 
 ---
 

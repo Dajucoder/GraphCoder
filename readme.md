@@ -31,7 +31,7 @@ GraphCoder/
 ├── .env
 ├── .env.example
 ├── .gitignore
-├── readme.md
+├── README.md
 ├── config.py
 ├── main.py
 ├── requirements.txt
@@ -83,11 +83,50 @@ GraphCoder/
 
 ## 🚀 快速开始（Getting Started）
 
+### 前置要求
+
+- Python 3.13（[下载地址](https://www.python.org/downloads/)）
+- pip 包管理器
+
+> **Windows 用户注意：** 安装 Python 时务必勾选 **"Add Python to PATH"**。
+
+---
+
 ### 1. 创建 Python 环境
+
+#### macOS / Linux
+
+**方式 A：conda（推荐）**
 ```bash
 conda create -n graphcoder python=3.13 -y
 conda activate graphcoder
 ```
+
+**方式 B：venv（系统自带）**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### Windows
+
+**PowerShell**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+> 如果执行 `Activate.ps1` 报错（禁止加载脚本），先运行：
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+> ```
+
+**CMD**
+```cmd
+.venv\Scripts\activate.bat
+```
+
+---
 
 ### 2. 安装依赖
 ```bash
@@ -122,11 +161,6 @@ python main.py
 当前最小示例用于验证 LLM 调用链路，后续会替换为完整的 LangGraph 运行入口。
 
 ## 🔧 常见问题
-
-### PowerShell 禁止加载激活脚本
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-```
 
 ### 依赖报 `No module named`
 确认已进入 `graphcoder` 环境后，重新执行第二步安装。

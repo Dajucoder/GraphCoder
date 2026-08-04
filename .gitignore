@@ -50,3 +50,4 @@ Thumbs.db
 
 # Project-local tooling and generated agent data
 .agents/
+/.mcp.json

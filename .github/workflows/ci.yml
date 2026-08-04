@@ -13,13 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
 
       - name: Install dependencies
-        run: uv pip install -r requirements.txt
+        run: |
+          uv pip install -r requirements.txt
+          uv pip install ruff
 
       - name: Run ruff
         run: ruff check src/
@@ -30,18 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
 
       - name: Install dependencies
-        run: uv pip install -r requirements.txt
-
-      - name: Run mypy (optional)
         run: |
-          uv pip install mypy || true
-          mypy src/ || true
+          uv pip install -r requirements.txt
+          uv pip install mypy
+
+      - name: Run mypy
+        run: mypy src/ || true
 
   test:
     name: Tests
@@ -49,20 +49,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: "latest"
 
       - name: Install dependencies
         run: |
           uv pip install -r requirements.txt
-          uv pip install pytest || true
+          uv pip install pytest
 
       - name: Run tests
         run: |
           if [ -d src/tests ] && ls src/tests/test_*.py 1>/dev/null 2>&1; then
-            pytest src/tests/ -v || true
+            pytest src/tests/ -v
           else
             echo "No tests found — skipping"
           fi

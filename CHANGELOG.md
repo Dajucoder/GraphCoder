@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Chat system prompt now answers greetings and self-introduction requests
+  directly instead of deflecting with "state your task first".
+
 ## [2.0.1] — 2026-08-05
 
 ### Changed

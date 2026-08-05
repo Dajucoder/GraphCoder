@@ -96,7 +96,8 @@ export const api = {
       "usage/stats",
       { thread_id: threadId || "" }
     ),
-  listModels: () => rpc<{ models: ModelInfo[]; active: string }>("models/list"),
+  listModels: (providerId?: string) => rpc<{ models: ModelInfo[]; active: string }>("models/list", providerId ? { id: providerId } : {}),
+  fetchModels: (providerId: string) => rpc<{ provider: ModelInfo; models: ModelInfo[] }>("models/list", { id: providerId }),
   upsertProvider: (provider: ProviderInput) =>
     rpc<ModelInfo>("providers/upsert", { ...provider }),
   deleteProvider: (id: string) => rpc<{ ok: boolean }>("providers/delete", { id }),
@@ -165,6 +166,8 @@ export interface ModelInfo {
   has_key: boolean;
   custom: boolean;
   base_url?: string | null;
+  temperature?: number;
+  max_tokens?: number;
 }
 
 export interface ProviderInput {
@@ -174,6 +177,9 @@ export interface ProviderInput {
   model: string;
   base_url?: string;
   api_key?: string;
+  api_key_env?: string;
+  temperature?: number;
+  max_tokens?: number;
 }
 
 export interface PermissionRule {

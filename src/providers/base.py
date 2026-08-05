@@ -102,12 +102,13 @@ class ProviderConfig:
             "name": self.name,
             "kind": self.kind,
             "base_url": self.base_url,
+            "api_key_env": self.api_key_env,
             "model": self.model,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
             "has_key": bool(key),
             "key_source": "env" if self.api_key_env else ("inline" if key else "none"),
-            "extra": self.extra,
+            **self.extra,
         }
 
 

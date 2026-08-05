@@ -101,6 +101,16 @@ class AppServer:
                 )
 
         self.bus.set_listener(on_event)
+        active_cfg = self._resolve_provider()
+        log.info(
+            "启动 Provider: %s (%s) kind=%s base_url=%s model=%s has_key=%s",
+            active_cfg.name,
+            active_cfg.id,
+            active_cfg.kind,
+            active_cfg.base_url or "默认",
+            active_cfg.model,
+            bool(active_cfg.resolved_api_key()),
+        )
 
 
     def _resolve_provider(self) -> ProviderConfig:
@@ -441,6 +451,7 @@ class AppServer:
         )
         return {"ok": ok}
 
+
     async def rpc_models_list(self, params: dict[str, Any]) -> dict[str, Any]:
         providers = [
             {**provider.public(), "custom": False} for provider in BUILTIN_PRESETS
@@ -448,10 +459,50 @@ class AppServer:
             {**provider.public(), "custom": True}
             for provider in self.settings.custom_providers()
         ]
-        return {
-            "models": providers,
-            "active": self.settings.active_provider_id() or "env",
-        }
+        provider_id = params.get("id")
+        if not provider_id:
+            return {
+                "models": providers,
+                "active": self.settings.active_provider_id() or "env",
+            }
+        target = next((p for p in providers if p["id"] == provider_id), None)
+        if target is None:
+            raise KeyError("provider not found")
+        if target.get("kind") != "openai-compatible":
+            return {"provider": target, "models": []}
+
+        from src.providers.base import ProviderConfig
+
+        provider_object = next(
+            (
+                provider
+                for provider in BUILTIN_PRESETS + self.settings.custom_providers()
+                if provider.id == provider_id
+            ),
+            None,
+        )
+        if provider_object is None:
+            raise KeyError("provider not found")
+        fetched = await self._fetch_openai_compatible_models(provider_object)
+        return {"provider": target, "models": fetched}
+
+
+    async def _fetch_openai_compatible_models(
+        self, provider: ProviderConfig
+    ) -> list[dict[str, Any]]:
+        from openai import OpenAI
+
+        client = OpenAI(
+            base_url=provider.base_url or "https://api.openai.com/v1",
+            api_key=provider.resolved_api_key() or "sk-not-set",
+            timeout=15,
+        )
+        try:
+            raw_models = client.models.list().data
+        except Exception as exc:  # noqa: BLE001
+            log.debug("抓取模型列表失败 %s: %s", provider.id, exc)
+            return []
+        return [{"id": m.id, "name": m.id, "model": m.id} for m in raw_models[:50]]
 
     async def rpc_providers_upsert(self, params: dict[str, Any]) -> dict[str, Any]:
         payload = dict(params)

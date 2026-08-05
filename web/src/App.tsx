@@ -78,6 +78,7 @@ interface UIItem {
   result?: string;
   blocked?: boolean;
   running?: boolean;
+  streamDirty?: boolean;
 }
 
 const EMPTY_THREAD: ThreadDetail = {
@@ -1197,22 +1198,73 @@ function ProviderManager(props: {
     model: "",
     base_url: "",
     api_key: "",
+    api_key_env: "",
+    temperature: 0.7,
+    max_tokens: 8192,
   };
   const [form, setForm] = useState<ProviderInput>(EMPTY_PROVIDER);
   const [saving, setSaving] = useState(false);
+  const [fetching, setFetching] = useState(false);
+
+  const normalize = (input: ProviderInput): ProviderInput => {
+    const next = { ...input };
+    if (next.kind === "anthropic" || next.kind === "gemini") {
+      next.base_url = "";
+    }
+    return next;
+  };
 
   const save = async () => {
-    if (!form.name.trim() || !form.model.trim()) return;
+    const target = normalize(form);
+    if (!target.name.trim() || !target.model.trim()) return;
     setSaving(true);
     try {
-      const provider = await api.upsertProvider(form);
+      const provider = await api.upsertProvider({
+        ...target,
+      });
       await props.onChanged();
       await props.onModel(provider.id);
-      setForm(EMPTY_PROVIDER);
-      props.showToast(`已保存模型连接: ${provider.name}`);
+      setForm({ ...EMPTY_PROVIDER, kind: target.kind });
+      props.showToast(`已保存模型连接: ${provider.name} (${target.model})`);
     } finally {
       setSaving(false);
     }
+  };
+
+  const fetchModels = async () => {
+    const target = normalize(form);
+    if (!target.name.trim() || !target.model.trim() || !target.base_url) {
+      props.showToast("请先填写连接名称、模型名称和 Base URL");
+      return;
+    }
+    setFetching(true);
+    try {
+      const provider = await api.upsertProvider({
+        ...target,
+      });
+      await props.onChanged();
+      await props.onModel(provider.id);
+      props.showToast(`已保存并抓取模型列表: ${provider.name}`);
+    } catch (reason) {
+      props.showToast(`抓取模型列表失败: ${reason instanceof Error ? reason.message : reason}`);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const pickModel = (model: ModelInfo) => {
+    setForm({
+      ...form,
+      id: model.id,
+      name: model.name,
+      kind: model.kind,
+      model: model.model,
+      base_url: model.base_url || "",
+      api_key: "",
+      api_key_env: "",
+      temperature: model.temperature ?? 0.7,
+      max_tokens: model.max_tokens ?? 8192,
+    });
   };
 
   const remove = async (model: ModelInfo) => {
@@ -1227,7 +1279,7 @@ function ProviderManager(props: {
       <div className="provider-list">
         {props.models.map((model) => (
           <div key={model.id} className={props.activeModel === model.id ? "provider-row active" : "provider-row"}>
-            <button onClick={() => props.onModel(model.id)}>
+            <button onClick={() => pickModel(model)}>
               <span className="provider-icon"><Bot /></span>
               <span><strong>{model.name}</strong><small>{model.model} · {model.kind}</small></span>
               <span className={`connection-dot ${model.has_key || model.kind === "ollama" ? "ready" : ""}`} />
@@ -1246,9 +1298,13 @@ function ProviderManager(props: {
           <option value="ollama">Ollama</option>
         </select>
         <input value={form.model} placeholder="模型名称" onChange={(event) => setForm({ ...form, model: event.target.value })} />
-        <input value={form.base_url} placeholder="API Base URL（可选）" onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
-        <input type="password" value={form.api_key} placeholder="API Key（仅保存在本机）" onChange={(event) => setForm({ ...form, api_key: event.target.value })} />
-        <button disabled={saving || !form.name.trim() || !form.model.trim()} onClick={save}><Save />{saving ? "保存中" : "保存连接"}</button>
+        <input value={form.base_url} placeholder="API Base URL" disabled={form.kind === "anthropic" || form.kind === "gemini"} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
+        <input type="password" value={form.api_key} placeholder="API Key（可选）" onChange={(event) => setForm({ ...form, api_key: event.target.value })} />
+        <input value={form.api_key_env} placeholder="API Key 环境变量名（可选）" onChange={(event) => setForm({ ...form, api_key_env: event.target.value })} />
+        <input type="number" value={String(form.temperature ?? 0.7)} placeholder="Temperature" onChange={(event) => setForm({ ...form, temperature: Number(event.target.value) })} />
+        <input type="number" value={String(form.max_tokens ?? 8192)} placeholder="Max Tokens" onChange={(event) => setForm({ ...form, max_tokens: Number(event.target.value) })} />
+        <button disabled={saving || fetching || !form.name.trim() || !form.model.trim()} onClick={save}><Save />{saving ? "保存中" : "保存连接"}</button>
+        <button disabled={fetching || !form.base_url || form.kind !== "openai-compatible"} onClick={fetchModels}><ListTodo />抓取模型列表</button>
       </div>
     </SettingsSection>
   );
@@ -1340,24 +1396,33 @@ interface NotificationContext {
   onSettled: () => void;
 }
 
-function handleNotification(method: string, params: Record<string, unknown>, context: NotificationContext) {
+export function handleNotification(method: string, params: Record<string, unknown>, context: NotificationContext) {
   const id = String(params.item_id || "");
   const kind = String(params.kind || "");
   if (method === "item/started" && kind !== "user_message") {
     const item: UIItem = kind === "tool_call"
       ? { id, kind: "tool_call", name: String(params.name || "tool"), arguments: (params.arguments as Record<string, unknown>) || {}, running: true }
       : { id, kind: "agent_message", role: String(params.role || "assistant"), content: "", running: true };
+    // One backend item id must map to exactly one UI entry; the engine reuses
+    // the same agent item across tool rounds, so never split or duplicate it.
     context.itemRef.current[id] = item;
-    if (kind === "agent_message") context.streamRef.current[id] = "";
-    context.setItems((previous) => previous.some((value) => value.id === id) ? previous : [...previous, item]);
+    if (kind === "agent_message") {
+      // Defer the bubble until the first delta so entries stay in time order
+      // (tool calls that happen before any text render above the message).
+      context.streamRef.current[id] = "";
+    } else {
+      context.setItems((previous) => previous.some((value) => value.id === id) ? previous : [...previous, item]);
+    }
   } else if (method === "item/delta") {
-    const streamIds = Object.keys(context.streamRef.current);
-    const streamId = id || streamIds[streamIds.length - 1] || "";
-    context.streamRef.current[streamId] = (context.streamRef.current[streamId] || "") + String(params.delta || "");
+    const delta = String(params.delta || "");
+    const streamId = id || Object.keys(context.streamRef.current).pop() || "";
     const item = context.itemRef.current[streamId];
     if (item) {
-      item.content = context.streamRef.current[streamId];
-      context.setItems((previous) => previous.map((value) => value.id === streamId ? { ...item } : value));
+      item.content = (item.content || "") + delta;
+      context.streamRef.current[streamId] = item.content;
+      context.setItems((previous) => previous.some((value) => value.id === streamId)
+        ? previous.map((value) => (value.id === streamId ? { ...item } : value))
+        : [...previous, { ...item }]);
     }
   } else if (method === "item/completed") {
     const payload = (params.payload as Record<string, unknown>) || {};
@@ -1384,28 +1449,43 @@ function handleNotification(method: string, params: Record<string, unknown>, con
   }
 }
 
-function rebuildItems(events: RuntimeEvent[]): UIItem[] {
+export function rebuildItems(events: RuntimeEvent[]): UIItem[] {
   const output: UIItem[] = [];
-  const map: Record<string, UIItem> = {};
+  const placed: Record<string, UIItem> = {};
+  const pending: Record<string, UIItem> = {};
   for (const event of events) {
     const params = event.payload;
     const payload = (params.payload as Record<string, unknown>) || {};
     const kind = String(params.kind || "");
     const id = String(event.item_id || event.seq);
-    if (event.type === "item/started" && kind !== "user_message") {
-      const item: UIItem = kind === "tool_call"
-        ? { id, kind: "tool_call", name: String(params.name || "tool"), arguments: (params.arguments as Record<string, unknown>) || {} }
-        : { id, kind: "agent_message", role: String(params.role || "assistant"), content: "" };
-      map[id] = item;
+    if (event.type === "item/started" && kind === "tool_call") {
+      const item: UIItem = { id, kind: "tool_call", name: String(params.name || "tool"), arguments: (params.arguments as Record<string, unknown>) || {} };
+      placed[id] = item;
       output.push(item);
+    } else if (event.type === "item/started" && kind === "agent_message") {
+      // Hold the bubble until its first delta so ordering matches the live view.
+      pending[id] = { id, kind: "agent_message", role: String(params.role || "assistant"), content: "" };
+    } else if (event.type === "item/delta" && pending[id]) {
+      placed[id] = pending[id];
+      delete pending[id];
+      output.push(placed[id]);
     } else if (event.type === "item/completed" && kind === "user_message") {
       output.push({ id, kind: "user_message", content: String(payload.content || "") });
     } else if (event.type === "item/completed" && kind === "agent_message") {
-      if (map[id]) map[id].content = String(payload.content || "");
-      else output.push({ id, kind: "agent_message", content: String(payload.content || "") });
-    } else if (event.type === "item/completed" && kind === "tool_call" && map[id]) {
-      map[id].blocked = Boolean(payload.blocked);
-      map[id].result = payload.result ? String(payload.result) : undefined;
+      const item = placed[id] || pending[id];
+      if (!item) {
+        output.push({ id, kind: "agent_message", content: String(payload.content || "") });
+      } else {
+        item.content = String(payload.content || "");
+        if (pending[id]) {
+          delete pending[id];
+          placed[id] = item;
+          output.push(item);
+        }
+      }
+    } else if (event.type === "item/completed" && kind === "tool_call" && placed[id]) {
+      placed[id].blocked = Boolean(payload.blocked);
+      placed[id].result = payload.result ? String(payload.result) : undefined;
     }
   }
   return output;

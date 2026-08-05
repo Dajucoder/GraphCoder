@@ -6,7 +6,7 @@ import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError
 
 from src.providers.base import ChatMessage, ProviderConfig, ToolCall, ToolSpec
 
@@ -81,6 +81,9 @@ class OpenAICompatProvider:
     ) -> AsyncIterator[tuple[str, Any]]:
         try:
             stream = await self.client.chat.completions.create(**self._params(messages, tools))
+        except OpenAIError as exc:
+            yield ("error", f"{type(exc).__name__}: {exc}")
+            return
         except Exception as exc:  # noqa: BLE001 - surface provider errors to clients
             yield ("error", f"{type(exc).__name__}: {exc}")
             return

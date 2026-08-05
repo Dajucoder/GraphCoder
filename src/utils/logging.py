@@ -14,7 +14,7 @@ def get_logger(name: str) -> logging.Logger:
         level = os.getenv("LOG_LEVEL", "INFO").upper()
         handler = logging.StreamHandler(sys.stderr)
         handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+            logging.Formatter("%(asctime)s %(levelname)s %(name)s [%(module)s.%(funcName)s]: %(message)s")
         )
         logger.addHandler(handler)
         logger.setLevel(getattr(logging, level, logging.INFO))

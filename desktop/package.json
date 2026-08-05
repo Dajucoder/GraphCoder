@@ -1,6 +1,6 @@
 {
   "name": "graphcoder-desktop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "GraphCoder Desktop — 多 Agent 编程助手",
   "main": "main.cjs",
   "scripts": {

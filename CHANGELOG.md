@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-08-05
+
 ### Changed
 - Switch the project license from MIT to a custom non-commercial license based
   on the Apache License 2.0 text with additional non-commercial terms.

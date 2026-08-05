@@ -28,12 +28,12 @@ GraphCoder 独立维护。
 已打包的桌面应用包含 Electron、Web 资源和冻结后的 Python Runtime。最终用户无需
 安装 Python、Node.js，也不需要保留源码。
 
-当前正式版本为 `v2.0.0`，安装包从
+当前正式版本为 `v2.0.1`，安装包从
 [GitHub Releases](https://github.com/Dajucoder/GraphCoder/releases/latest) 下载：
 
 ```text
-GraphCoder-2.0.0-mac-arm64.dmg
-GraphCoder-2.0.0-win-x64.exe
+GraphCoder-2.0.1-mac-arm64.dmg
+GraphCoder-2.0.1-win-x64.exe
 ```
 
 macOS 首次打开未签名测试包时，在 Finder 中右键 GraphCoder 并选择“打开”。公开分发

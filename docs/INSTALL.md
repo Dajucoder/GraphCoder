@@ -10,8 +10,8 @@ GraphCoder Desktop 安装包已经包含 Electron、Web 界面和冻结后的 Py
 
 | 系统 | 安装包 | 支持范围 |
 |---|---|---|
-| macOS Apple Silicon | `GraphCoder-2.0.0-mac-arm64.dmg` | macOS 11+，M1/M2/M3/M4 |
-| Windows x64 | `GraphCoder-2.0.0-win-x64.exe` | 64 位 Windows 10/11 |
+| macOS Apple Silicon | `GraphCoder-2.0.1-mac-arm64.dmg` | macOS 11+，M1/M2/M3/M4 |
+| Windows x64 | `GraphCoder-2.0.1-win-x64.exe` | 64 位 Windows 10/11 |
 
 当前没有 macOS Intel、Windows ARM 或 Linux 安装包。Release 附件中的
 `SHA256SUMS.txt` 用于验证下载文件完整性。
@@ -21,20 +21,20 @@ GraphCoder Desktop 安装包已经包含 Electron、Web 界面和冻结后的 Py
 macOS Terminal：
 
 ```bash
-shasum -a 256 GraphCoder-2.0.0-mac-arm64.dmg
+shasum -a 256 GraphCoder-2.0.1-mac-arm64.dmg
 ```
 
 Windows PowerShell：
 
 ```powershell
-Get-FileHash .\GraphCoder-2.0.0-win-x64.exe -Algorithm SHA256
+Get-FileHash .\GraphCoder-2.0.1-win-x64.exe -Algorithm SHA256
 ```
 
 命令输出必须与同一 Release 中 `SHA256SUMS.txt` 对应行完全一致。
 
 ## macOS 安装
 
-1. 双击 `GraphCoder-2.0.0-mac-arm64.dmg` 挂载镜像。
+1. 双击 `GraphCoder-2.0.1-mac-arm64.dmg` 挂载镜像。
 2. 将 GraphCoder 拖入 `Applications` 文件夹。
 3. 在 Finder 的“应用程序”中找到 GraphCoder。
 4. 当前测试包未经过 Apple 公证。首次启动请右键 GraphCoder，选择“打开”，并在确认框中
@@ -46,7 +46,7 @@ GraphCoder，再选择“仍要打开”。不要对来源不明或校验失败�
 
 ## Windows 安装
 
-1. 双击 `GraphCoder-2.0.0-win-x64.exe`。
+1. 双击 `GraphCoder-2.0.1-win-x64.exe`。
 2. 当前安装器未配置 Authenticode 证书。如果 SmartScreen 出现提示，先确认文件来自本项目
    Release 且 SHA-256 校验正确，再选择“更多信息 -> 仍要运行”。
 3. 按安装向导选择安装目录。安装器会创建开始菜单项，并可创建桌面快捷方式。

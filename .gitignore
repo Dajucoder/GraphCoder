@@ -23,6 +23,8 @@ web/node_modules/
 web/tsconfig.tsbuildinfo
 desktop/node_modules/
 desktop/dist/
+desktop/runtime/
+release/
 
 # Packaging and build artifacts
 build/

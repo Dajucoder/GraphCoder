@@ -6,9 +6,8 @@ import asyncio
 from pathlib import Path
 
 from src.providers.base import ProviderConfig, ToolCall
-from src.runtime.engine import TurnResult
 from src.runtime.approvals import ApprovalHub
-from src.runtime.engine import AgentEngine
+from src.runtime.engine import AgentEngine, TurnResult
 from src.runtime.events import EventBus
 from src.runtime.permission import ALLOW, DENY, PermissionEngine
 

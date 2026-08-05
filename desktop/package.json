@@ -1,27 +1,67 @@
 {
   "name": "graphcoder-desktop",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "GraphCoder Desktop — 多 Agent 编程助手",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "dist": "electron-builder --mac dmg",
-    "pack": "electron-builder --dir"
+    "build:web": "npm --prefix ../web run build",
+    "build:runtime": "python ../scripts/build_runtime.py",
+    "build": "npm run build:web && npm run build:runtime",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run dist:mac",
+    "dist:mac": "npm run build && electron-builder --mac dmg --arm64",
+    "dist:win": "npm run build && electron-builder --win nsis --x64"
   },
   "build": {
     "appId": "com.graphcoder.app",
     "productName": "GraphCoder",
-    "files": ["main.cjs", "preload.cjs"],
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": ["**/*"]
+      }
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "../release"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": ["dmg"]
+      "target": ["dmg"],
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "win": {
-      "target": ["nsis"]
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
     },
-    "linux": {
-      "target": ["AppImage"]
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GraphCoder"
     }
   },
   "devDependencies": {

@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-08-05
+
+### Added
+- Add a Maka-inspired desktop shell with collapsible sessions, conversation
+  workspace, task/file/activity workbar, settings, themes, and responsive layouts.
+- Add native workspace selection, Git metadata, bounded file browsing, and OS
+  reveal/open integration for Electron.
+- Add desktop model connection management with local API-key storage and
+  secret-free protocol responses.
+- Add a PyInstaller runtime, Electron Builder DMG/NSIS packaging, and native
+  macOS arm64/Windows x64 GitHub Actions release jobs. Installed users no longer
+  need Python, Node.js, or a source checkout.
+- Add development, desktop packaging, release, troubleshooting, runtime API,
+  agent orchestration, and security documentation for the current architecture.
+
 ### Changed
 - Align `.env.example`, README, and API docs with the environment variables
   actually read by `config.py`.
-- Mark planned agent, node, and data-layer modules as planned across the docs.
-- Update release dates in CHANGELOG and roadmap to match repository history.
+- Replace obsolete scaffold and planned-module descriptions with the production
+  Runtime, Electron IPC, HTTP/SSE bridge, and LangGraph compatibility boundaries.
+- Document that Windows x64 packaging is configured but still requires a native
+  runner installation test, while macOS arm64 has been built and launched locally.
 
 ### Fixed
 - CI: create a uv virtual environment before installing dependencies so the
@@ -20,9 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `ChatOpenAI` as a `SecretStr`.
 - SECURITY.md: reflect that CI now runs a verified-secret scan with truffleHog.
 
-## [2.0.0] — 2026-08-05
-
-### Added
+### Runtime and agent platform
 - **App Server 架构**（Codex 模式）：`graphcoder app-server` 以 JSON-RPC lite over stdio
   提供 Item / Turn / Thread 三层原语（initialize 握手、`item/started→delta→completed`、
   `approval/requested` 双向暂停），CLI/TUI 与 Desktop 均以子进程方式接入，无 HTTP 依赖。
@@ -78,6 +93,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop 应用**（`desktop/`）：Electron 封装，自动拉起后端服务。
 - **Rich CLI**（`src/api/cli.py`）：`chat` / `run` / `serve` / `providers` / `sessions` / `doctor`。
 - **测试套件**：21 个单元/集成测试覆盖 provider、工具、存储、流水线回环、HTTP API。
+
+> Historical note: the original 1.0.0 server included a WebSocket path. The
+> current Runtime architecture uses JSONL over stdio and HTTP/SSE for Web; do
+> not treat WebSocket as a current transport contract.
 
 ---
 

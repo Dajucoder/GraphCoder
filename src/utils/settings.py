@@ -72,7 +72,11 @@ class SettingsStore:
         data = self.load()
         payload_raw = dict(raw)
         if not payload_raw.get("id"):
-            payload_raw["id"] = f"custom-{len(data['providers']) + 1}"
+            used_ids = {str(provider.get("id", "")) for provider in data["providers"]}
+            sequence = 1
+            while f"custom-{sequence}" in used_ids:
+                sequence += 1
+            payload_raw["id"] = f"custom-{sequence}"
         cfg = ProviderConfig(**payload_raw)
         existing = [i for i, p in enumerate(data["providers"]) if p.get("id") == cfg.id]
         payload = {

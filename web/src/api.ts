@@ -7,7 +7,11 @@ declare global {
   interface Window {
     graphcoder?: {
       request: (method: string, params?: unknown) => Promise<unknown>;
-      onNotification: (cb: (method: string, params: Record<string, unknown>) => void) => void;
+      onNotification: (cb: (method: string, params: Record<string, unknown>) => void) => () => void;
+      selectWorkspace: () => Promise<string | null>;
+      revealPath: (path: string) => Promise<void>;
+      openPath: (path: string) => Promise<string>;
+      platform: string;
     };
   }
 }
@@ -45,10 +49,7 @@ export type Notify = (method: string, params: Record<string, unknown>) => void;
 
 export function subscribeEvents(cb: Notify): () => void {
   if (native) {
-    native.onNotification(cb);
-    return () => {
-      /* ipc subscription lives for the window lifetime */
-    };
+    return native.onNotification(cb);
   }
   const es = new EventSource(`${BASE}/stream`);
   es.onmessage = (ev) => {
@@ -64,7 +65,8 @@ export function subscribeEvents(cb: Notify): () => void {
 
 export const api = {
   initialize: () => rpc<{ capabilities: Record<string, string[]>; defaults: { model: string; provider: string } }>("initialize"),
-  listThreads: () => rpc<{ threads: ThreadSummary[] }>("threads/list"),
+  listThreads: (includeArchived = false) =>
+    rpc<{ threads: ThreadSummary[] }>("threads/list", { include_archived: includeArchived }),
   createThread: (title = "新会话") => rpc<ThreadDetail>("threads/create", { title }),
   getThread: (id: string) => rpc<ThreadDetail & { events: RuntimeEvent[]; tasks: TaskInfo[] }>("threads/get", { thread_id: id }),
   renameThread: (id: string, title: string) => rpc<{ ok: boolean }>("threads/rename", { thread_id: id, title }),
@@ -86,6 +88,8 @@ export const api = {
     rpc<{ path: string; content: string; truncated: boolean }>("artifacts/preview", { path }),
   memoryList: (threadId?: string, query = "") =>
     rpc<{ memory: MemoryEntry[] }>("memory/list", { thread_id: threadId || "", query }),
+  memoryAdd: (threadId: string, key: string, value: string) =>
+    rpc<MemoryEntry>("memory/add", { thread_id: threadId, key, value }),
   memoryDelete: (id: number) => rpc<{ ok: boolean }>("memory/delete", { id }),
   usageStats: (threadId?: string) =>
     rpc<{ input_tokens: number; output_tokens: number; total_tokens: number; cost: number; calls: number; tasks: number }>(
@@ -93,13 +97,33 @@ export const api = {
       { thread_id: threadId || "" }
     ),
   listModels: () => rpc<{ models: ModelInfo[]; active: string }>("models/list"),
+  upsertProvider: (provider: ProviderInput) =>
+    rpc<ModelInfo>("providers/upsert", { ...provider }),
+  deleteProvider: (id: string) => rpc<{ ok: boolean }>("providers/delete", { id }),
   setOption: (options: Record<string, unknown>) => rpc<{ ok: boolean }>("settings/set", { options }),
+  getSettings: () => rpc<SettingsInfo>("settings/get"),
+  getWorkspace: () => rpc<WorkspaceInfo>("workspace/get"),
+  setWorkspace: (path: string) => rpc<WorkspaceInfo>("workspace/set", { path }),
+  listFiles: (path = ".") => rpc<{ path: string; entries: FileEntry[] }>("workspace/files", { path }),
   approve: (id: string, approved: boolean, scope = "once") =>
     rpc<{ ok: boolean }>("approvals/respond", { id, approved, scope }),
   addPermission: (kind: string, pattern: string, action: string) =>
     rpc<{ ok: boolean }>("permissions/add", { kind, pattern, action }),
   listPermissions: () => rpc<{ permissions: PermissionRule[] }>("permissions/list"),
+  removePermission: (id: number) => rpc<{ ok: boolean }>("permissions/remove", { id }),
 };
+
+export async function chooseWorkspace(): Promise<string | null> {
+  return native?.selectWorkspace ? native.selectWorkspace() : null;
+}
+
+export async function revealPath(path: string): Promise<void> {
+  if (native?.revealPath) await native.revealPath(path);
+}
+
+export async function openPath(path: string): Promise<void> {
+  if (native?.openPath) await native.openPath(path);
+}
 
 export interface ThreadSummary {
   id: string;
@@ -139,6 +163,17 @@ export interface ModelInfo {
   kind: string;
   model: string;
   has_key: boolean;
+  custom: boolean;
+  base_url?: string | null;
+}
+
+export interface ProviderInput {
+  id?: string;
+  name: string;
+  kind: string;
+  model: string;
+  base_url?: string;
+  api_key?: string;
 }
 
 export interface PermissionRule {
@@ -171,4 +206,26 @@ export interface ApprovalInfo {
   target: string;
   reason: string;
   rule_key?: string;
+}
+
+export interface WorkspaceInfo {
+  path: string;
+  name: string;
+  branch: string;
+  is_git: boolean;
+}
+
+export interface FileEntry {
+  name: string;
+  path: string;
+  kind: "file" | "directory";
+  size: number;
+  updated_at: number;
+}
+
+export interface SettingsInfo {
+  version?: number;
+  active_provider?: string;
+  options: Record<string, unknown>;
+  permissions: PermissionRule[];
 }

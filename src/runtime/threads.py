@@ -57,6 +57,10 @@ class ThreadManager:
     async def thread_events(self, thread_id: str, after_seq: int = 0):
         return await self.store.events(thread_id, after_seq)
 
+    def has_running_tasks(self) -> bool:
+        """Return whether any turn is still using the current workspace."""
+        return any(not task.done() for task in self._running.values())
+
     # ---------------- turns ----------------
     async def prompt(self, thread_id: str, content: str, mode: str = "chat", budgets: dict[str, Any] | None = None):
         thread = await self.store.get_session(thread_id)

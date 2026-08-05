@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -185,8 +186,10 @@ class AppServer:
                 "threads": ["create", "list", "get", "rename", "archive", "fork", "delete", "prompt", "resume"],
                 "approvals": ["list", "respond"],
                 "models": ["list"],
+                "providers": ["upsert", "delete"],
                 "permissions": ["list", "add", "remove"],
                 "settings": ["get", "set"],
+                "workspace": ["get", "set", "files"],
             },
             "defaults": {
                 "mode": "chat",
@@ -319,6 +322,87 @@ class AppServer:
     async def rpc_memory_delete(self, params: dict[str, Any]) -> dict[str, Any]:
         return {"ok": await self.store.delete_memory(int(params.get("id", 0)))}
 
+    async def rpc_memory_add(self, params: dict[str, Any]) -> dict[str, Any]:
+        key = str(params.get("key", "")).strip()
+        value = str(params.get("value", "")).strip()
+        if not key or not value:
+            raise KeyError("记忆的 key 和 value 不能为空")
+        return await self.store.add_memory(params.get("thread_id") or None, key, value)
+
+    async def rpc_workspace_get(self, params: dict[str, Any]) -> dict[str, Any]:
+        return self._workspace_info()
+
+    async def rpc_workspace_set(self, params: dict[str, Any]) -> dict[str, Any]:
+        if self.threads.has_running_tasks():
+            raise KeyError("任务运行期间不能切换工作区")
+        target = Path(str(params.get("path", ""))).expanduser().resolve()
+        if not target.exists() or not target.is_dir():
+            raise KeyError(f"工作区不存在: {target}")
+        self.workspace = target
+        self.threads.workspace = target
+        self.threads.adapter.workspace = target
+        self.settings.set_option("workspace", str(target))
+        self._notify("workspace/changed", self._workspace_info())
+        return self._workspace_info()
+
+    async def rpc_workspace_files(self, params: dict[str, Any]) -> dict[str, Any]:
+        from src.tools.base import safe_join
+
+        relative = str(params.get("path", "."))
+        try:
+            root = safe_join(self.workspace, relative)
+        except ValueError as exc:
+            raise KeyError(str(exc))
+        if not root.exists() or not root.is_dir():
+            raise KeyError(f"目录不存在: {relative}")
+        ignored = {
+            ".git", ".graphcoder", ".mypy_cache", ".pytest_cache", ".ruff_cache",
+            ".venv", "__pycache__", "build", "dist", "node_modules", "venv",
+        }
+        entries = []
+        try:
+            children = sorted(root.iterdir(), key=lambda item: (item.is_file(), item.name.lower()))
+        except PermissionError as exc:
+            raise KeyError(f"目录无读取权限: {relative}") from exc
+        for child in children[:500]:
+            if child.name in ignored or child.name.startswith(".DS_Store"):
+                continue
+            try:
+                stat = child.stat()
+            except OSError:
+                continue
+            entries.append(
+                {
+                    "name": child.name,
+                    "path": str(child.relative_to(self.workspace)),
+                    "kind": "directory" if child.is_dir() else "file",
+                    "size": stat.st_size,
+                    "updated_at": stat.st_mtime,
+                }
+            )
+        return {"path": relative, "entries": entries}
+
+    def _workspace_info(self) -> dict[str, Any]:
+        branch = ""
+        try:
+            result = subprocess.run(
+                ["git", "branch", "--show-current"],
+                cwd=self.workspace,
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=2,
+            )
+            branch = result.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return {
+            "path": str(self.workspace),
+            "name": self.workspace.name,
+            "branch": branch,
+            "is_git": (self.workspace / ".git").exists(),
+        }
+
     async def rpc_usage_stats(self, params: dict[str, Any]) -> dict[str, Any]:
         tasks = await self.store.list_tasks(params.get("thread_id"))
         cursor = await self.store._db_or_raise().execute(
@@ -358,11 +442,40 @@ class AppServer:
         return {"ok": ok}
 
     async def rpc_models_list(self, params: dict[str, Any]) -> dict[str, Any]:
-        providers = list(BUILTIN_PRESETS) + self.settings.custom_providers()
+        providers = [
+            {**provider.public(), "custom": False} for provider in BUILTIN_PRESETS
+        ] + [
+            {**provider.public(), "custom": True}
+            for provider in self.settings.custom_providers()
+        ]
         return {
-            "models": [p.public() for p in providers],
+            "models": providers,
             "active": self.settings.active_provider_id() or "env",
         }
+
+    async def rpc_providers_upsert(self, params: dict[str, Any]) -> dict[str, Any]:
+        payload = dict(params)
+        if not str(payload.get("name", "")).strip():
+            raise KeyError("Provider 名称不能为空")
+        if not str(payload.get("model", "")).strip():
+            raise KeyError("模型名称不能为空")
+        if payload.get("id") and not any(
+            provider.id == payload["id"] for provider in self.settings.custom_providers()
+        ):
+            raise KeyError("只能编辑自定义 Provider")
+        config = self.settings.upsert_provider(payload)
+        return {**config.public(), "custom": True}
+
+    async def rpc_providers_delete(self, params: dict[str, Any]) -> dict[str, Any]:
+        provider_id = str(params.get("id", ""))
+        removed = self.settings.delete_provider(provider_id)
+        if removed:
+            config = self._resolve_provider()
+            self.threads.adapter.cfg = config
+            from src.providers.registry import build_provider
+
+            self.threads.adapter.provider = build_provider(config)
+        return {"ok": removed}
 
     async def rpc_settings_get(self, params: dict[str, Any]) -> dict[str, Any]:
         data = self.settings.load()
@@ -372,8 +485,21 @@ class AppServer:
 
     async def rpc_settings_set(self, params: dict[str, Any]) -> dict[str, Any]:
         data = self.settings.load()
-        data["options"].update(params.get("options", {}))
+        options = dict(params.get("options", {}))
+        active_provider = options.pop("active_provider", None)
+        if active_provider is not None:
+            data["active_provider"] = str(active_provider)
+        data["options"].update(options)
         self.settings.save(data)
+        if active_provider is not None:
+            config = self._resolve_provider()
+            self.threads.adapter.cfg = config
+            from src.providers.registry import build_provider
+
+            self.threads.adapter.provider = build_provider(config)
+        self.options.update(options)
+        self.threads.options.update(options)
+        self.threads.adapter.options.update(options)
         return {"ok": True}
 
     async def rpc_permissions_list(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -401,9 +527,12 @@ class AppServer:
 
 
 async def amain(workspace: Path | None = None, home: Path | None = None) -> None:
-    ws = (workspace or Path.cwd()).resolve()
-    store = SqliteStore(home / "runtime.sqlite" if home else None)
     settings = SettingsStore(home / "settings.json" if home else None)
+    saved_workspace = settings.options().get("workspace")
+    ws = (workspace or (Path(saved_workspace) if saved_workspace else Path.cwd())).resolve()
+    if not ws.exists() or not ws.is_dir():
+        ws = Path.cwd().resolve()
+    store = SqliteStore(home / "runtime.sqlite" if home else None)
     server = AppServer(store=store, settings=settings, workspace=ws)
     try:
         await server.run_forever()
@@ -415,11 +544,12 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(prog="graphcoder app-server")
-    parser.add_argument("--workspace", default=str(Path.cwd()))
+    parser.add_argument("--workspace", default=None)
     parser.add_argument("--home", default=None)
     args = parser.parse_args()
     home = Path(args.home) if args.home else graphcoder_home()
-    asyncio.run(amain(Path(args.workspace), home))
+    workspace = Path(args.workspace) if args.workspace else None
+    asyncio.run(amain(workspace, home))
 
 
 if __name__ == "__main__":

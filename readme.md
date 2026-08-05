@@ -1,6 +1,6 @@
 # GraphCoder
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0 (Non-Commercial)](https://img.shields.io/badge/License-Apache_2.0_Non--Commercial-blue.svg)](LICENSE)
 [![Python 3.13+](https://img.shields.io/badge/Python-3.13%2B-blue.svg)](https://www.python.org/)
 [![React](https://img.shields.io/badge/Web-React%20%2B%20TypeScript-149eca.svg)](web/)
 [![Electron](https://img.shields.io/badge/Desktop-Electron-47848f.svg)](desktop/)
@@ -162,4 +162,6 @@ git diff --check
 
 ## License
 
-[MIT](LICENSE)
+本项目采用 [Apache 2.0 非商用定制版](LICENSE)：以 Apache License 2.0 为基础，
+附加“非商用”条款（非官方 Apache 2.0，官方版本允许商用）。个人、教育、学术研究
+及非商业开源用途免费；商业用途需另行获取商业授权。

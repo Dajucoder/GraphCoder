@@ -1,192 +1,87 @@
-# System Architecture
+# System Architecture (v2)
 
 ## High-Level Overview
 
-GraphCoder is a **multi-agent automated coding system** built on [LangGraph](https://python.langchain.com/docs/langgraph/). It orchestrates a directed graph of specialized AI agents — PM, Architect, Developer, Reviewer, and QA — to transform natural-language requirements into tested, reviewed code.
-
-> **Status:** This is the target architecture. The current repository is a
-> minimal skeleton: `src/api/cli.py` drives a single LangChain chain via
-> `src/nodes/simple_chain.py`, and the full agent mesh (`StateGraph`, agents,
-> data layer) is planned but not yet implemented.
+GraphCoder v2 follows the **Codex App Server** and **Maka** patterns: all
+functionality (agent loop, tools, permissions, storage) lives in an embeddable
+**GraphCoder Runtime**; clients are thin UIs over transports. The CLI/TUI and
+Electron desktop spawn `graphcoder app-server` (JSON-RPC over stdio, Item/Turn/
+Thread primitives); the web keeps only a thin transport process (static + SSE).
+The execution engine is self-built (multi-provider streaming + tool loop),
+modeled on Hermes/Codex/Maka design patterns; the five-role pipeline is a
+scheduler on top of it. SQLite is the single authority for sessions and the
+append-only runtime event log.
 
 ```
-┌──────────────┐
-│  User Input  │  (natural-language requirement)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────────────────────────────────────────────┐
-│                  GraphCoder Core                      │
-│                                                      │
-│  ┌─────────┐   ┌───────────┐   ┌─────────────────┐  │
-│  │  PM     │──▶│ Architect │──▶│   Developer     │  │
-│  │ Agent   │   │  Agent    │   │    Agent        │  │
-│  └────┬────┘   └─────┬─────┘   └────────┬────────┘  │
-│       │              │                  │           │
-│       ▼              ▼                  ▼           │
-│  ┌──────────────────────────────────────────────────┐│
-│  │                    State Graph                   ││
-│  │   (TypedDict state shared across all agents)     ││
-│  └──────────────────────┬───────────────────────────┘│
-│                         │                            │
-│              ┌──────────▼──────────┐                 │
-│              │   Reviewer Agent   │                 │
-│              └──────────┬──────────┘                 │
-│                         │                            │
-│              ┌──────────▼──────────┐                 │
-│              │     QA Agent       │                 │
-│              └──────────┬──────────┘                 │
-│                         │                            │
-│              ┌──────────▼──────────┐                 │
-│              │  Loop-back? (yes)  │──────────────────┘│
-│              └────────────────────┘                   │
-└───────────────────────┬──────────────────────────────┘
-                        │
-                        ▼
-                 ┌───────────────┐
-                 │ Final Output  │
-                 │ (code + docs) │
-                 └───────────────┘
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│  Web (React) │   │ Desktop      │   │ TUI / CLI    │
+│  HTTP+SSE    │   │ Electron IPC │   │ stdio JSON-RPC│
+└──────┬───────┘   └──────┬───────┘   └──────┬───────┘
+       │                  │                  │
+       └─────────┐        │        ┌─────────┘
+                 ▼        ▼        ▼
+        ┌─────────────────────────────────────┐
+        │        graphcoder app-server         │
+        │  JSON-RPC lite over stdio (JSONL)    │
+        │  Item / Turn / Thread primitives     │
+        └──────────────────┬──────────────────┘
+                           ▼
+        ┌─────────────────────────────────────┐
+        │        GraphCoder Runtime            │
+        │  Agent Engine + Orchestrator         │
+        │  Permission Engine + Event Bus       │
+        └──────────────────┬──────────────────┘
+                           ▼
+        ┌─────────────────────────────────────┐
+        │        SQLite 权威存储               │
+        │  sessions / runtime_events / tasks  │
+        │  settings / permissions / usage     │
+        └─────────────────────────────────────┘
 ```
 
 ## Core Concepts
 
-### State Graph
+### Runtime (`src/runtime/`)
 
-The central abstraction is a **LangGraph `StateGraph`** with a shared `TypedDict` state. Every node (agent) reads from and writes to the same state object, enabling clean data flow without explicit message passing. *(Target design — not yet implemented.)*
+- `engine.py` — self-built Agent Engine: multi-provider streaming
+  (`src/providers`), tool-calling loop, permission gating before execution,
+  async approval pause/resume, event projection to the bus.
+- `approvals.py` — async approval hub (pending futures + `approval/requested`).
+- `permission.py` + `permission_bridge.py` — allow/ask/deny policy engine and
+  the shared bridge used by the Hermes `pre_tool_call` plugin.
+- `orchestrator.py` — PM → Architect → Developer → Reviewer → QA scheduler with
+  QA loop-back (each role is a Hermes agent with a role system prompt).
+- `threads.py` — thread lifecycle, turn execution, durable task records.
+- `context.py` — workspace instructions (AGENTS.md) + tool-result shaping.
 
-### Agents
+### App Server (`src/api/app_server.py`)
 
-Each agent is a LangGraph node function that:
-1. Receives the current state
-2. Builds an LLM call with role-specific prompt
-3. Updates the state with its output
+JSON-RPC lite over stdio (JSONL). Primitives: Item (typed, lifecycle
+`item/started → item/delta → item/completed`), Turn (`turn/started/completed`),
+Thread (`threads/create|list|get|rename|archive|fork|delete|prompt|resume`).
+The server can initiate `approval/requested` and pause a turn until the client
+responds — matching Codex App Server semantics.
 
-| Agent | Role | Input | Output |
-|-------|------|-------|--------|
-| PM | Requirements analysis, PRD drafting | User request | PRD document |
-| Architect | System design, tech selection | PRD | Architecture spec |
-| Developer | Code implementation | Architecture + Review feedback | Source code |
-| Reviewer | Code review, feedback | Source code | Review comments |
-| QA | Test design, quality gate | Code + Review | Test plan + Pass/Fail |
+### Storage (`src/storage/`)
 
-The agents above are specifications only; see [AGENTS.md](AGENTS.md). Their
-modules do not exist yet and will be added under `src/agents/`.
+SQLite (`runtime.sqlite`) is the single authority: sessions, append-only
+`runtime_events`, tasks, settings, permissions and usage. `migrate.py` imports
+legacy v1 JSON data once on first start.
 
-### Looping
+### Permission enforcement
 
-If QA fails, the graph loops back to the Developer with QA feedback. This continues until: *(Target design — not yet implemented.)*
-- QA passes (max iterations enforced), or
-- Max retries reached → escalation to user
-
----
-
-## Directory Structure
-
-```
-GraphCoder/
-├── main.py                  # Entry point → src.api.cli
-├── config.py                # Env config (OPENAI_API_KEY, etc.)
-├── requirements.txt         # Python dependencies
-├── .env.example             # Env variable template
-├── CHANGELOG.md             # Version history
-├── CONTRIBUTING.md          # Contribution guide
-├── SECURITY.md              # Security policy
-├── LICENSE                  # MIT License
-│
-├── docs/                    # 📖 This documentation folder
-│   ├── ARCHITECTURE.md      # This file
-│   ├── AGENTS.md            # Agent specifications
-│   ├── NODES.md             # Node implementation guide
-│   ├── API_REFERENCE.md     # API docs
-│   └── ROADMAP.md           # Project roadmap
-│
-├── .github/                 # Community templates & CI
-│   ├── ISSUE_TEMPLATE/
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   └── workflows/ci.yml
-│
-├── src/
-│   ├── __init__.py
-│   ├── api/                 # Entry points
-│   │   ├── __init__.py
-│   │   └── cli.py           # CLI runner (implemented)
-│   ├── nodes/               # LangGraph nodes
-│   │   ├── __init__.py
-│   │   └── simple_chain.py  # Placeholder chain node (implemented)
-│   ├── utils/               # Utilities
-│   │   ├── __init__.py
-│   │   └── llm.py           # LLM factory (implemented)
-│   ├── core/                # Planned: state schema, graph builder
-│   │   └── __init__.py
-│   ├── agents/              # Planned: PM / Architect / Developer / Reviewer / QA
-│   │   └── __init__.py
-│   ├── data/                # Planned: I/O layer
-│   │   └── __init__.py
-│   ├── prompts/             # Planned: prompt templates
-│   │   └── __init__.py
-│   └── tests/               # Planned: unit and integration tests
-│       └── __init__.py
-```
-
----
-
-## Data Flow
-
-The flow below is the target design. Today the CLI only invokes the simple
-chain; the `GraphCore` state builder and agent loop are not implemented yet.
-
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│ User        │────▶│ CLI (cli.py) │────▶│ GraphCore   │
-│ Requirement │     │              │     │ builds state│
-└─────────────┘     └──────────────┘     └──────┬──────┘
-                                                 │
-                    ┌────────────────────────────┘
-                    ▼
-              ┌─────────────┐
-              │ Agent Loop  │
-              │ PM → AD →   │
-              │ Dev → Rev   │
-              │ → QA        │
-              └──────┬──────┘
-                     │ pass / loop-back
-                     ▼
-              ┌─────────────┐
-              │ Output      │
-              │ - code/     │
-              │ - docs/     │
-              │ - test/     │
-              └─────────────┘
-```
-
----
-
-## Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Orchestration | [LangGraph](https://python.langchain.com/docs/langgraph/) |
-| LLM Interface | [LangChain](https://python.langchain.com/) + [langchain-openai](https://python.langchain.com/docs/integrations/chat/openai/) |
-| LLM Provider | OpenAI-compatible API (configurable) |
-| Configuration | [python-dotenv](https://saurabh-kumar.com/python-dotenv/) |
-| Terminal UI | [Rich](https://rich.readthedocs.io/) |
-| Linting | [Ruff](https://docs.astral.sh/ruff/) |
-
----
+The Agent Engine evaluates the policy (command patterns for shell args, tool
+names, directory prefixes) **before** tool execution. `allow` proceeds; `deny`
+blocks the tool; `ask` emits `approval/requested` and awaits the client (or a
+watchdog timeout denies). Decisions can be remembered (`always`/`session`) as
+policy rules in SQLite.
 
 ## Extension Points
 
-To add a new agent:
-1. Define agent logic in `src/agents/<name>.py`
-2. Add corresponding node in `src/nodes/<name>_node.py`
-3. Register in the graph builder (future `src/core/graph.py`)
-4. Add prompt template in `src/prompts/<name>_prompt.py`
-
-To add a new output format:
-1. Implement serializer in `src/data/output.py`
-2. Register in the output pipeline
-
-To add a new LLM provider:
-1. Extend `src/utils/llm.py:build_llm()` with a provider selector
-2. Add provider-specific config keys to `config.py`
+- **New surface**: speak the app-server JSON-RPC protocol (see
+  [API_REFERENCE.md](API_REFERENCE.md)); the TUI, Desktop and Web transport are
+  all examples.
+- **New tool**: extend the Hermes toolset or add a plugin; permission rules
+  apply generically via the `pre_tool_call` hook.
+- **New agent/role**: add a role prompt in `src/agents/roles.py` and a step in
+  `src/runtime/orchestrator.py`.

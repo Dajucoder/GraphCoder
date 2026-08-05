@@ -1,1 +1,1 @@
-
+"""Agent role definitions."""

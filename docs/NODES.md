@@ -2,9 +2,10 @@
 
 This document explains how to implement LangGraph nodes for GraphCoder.
 
-> **Status:** Only the `Simple Chain` node exists today. The graph builder
-> (`src/core/graph.py`) and production agent nodes are planned; the examples
-> below describe the intended patterns for those future nodes.
+> **Status:** Implemented. The production agent mesh lives in `src/core/graph.py`
+> (PM → Architect → Developer → Reviewer → QA with loop-back) plus the chat
+> tool-loop runner in `src/core/chat.py`. The examples below describe the
+> implementation patterns used.
 
 ## What is a Node?
 

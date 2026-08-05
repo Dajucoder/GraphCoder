@@ -1,4 +1,15 @@
 langchain
 langchain-openai
+langgraph
 python-dotenv
 rich
+fastapi
+"uvicorn[standard]"
+openai
+anthropic
+google-genai
+ollama
+mcp
+httpx
+textual
+aiosqlite

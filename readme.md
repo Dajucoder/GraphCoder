@@ -1,168 +1,107 @@
-# 🕸️ GraphCoder (图灵智开)
+# 🕸️ GraphCoder v2 (图灵智开)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
-[![Powered by LangGraph](https://img.shields.io/badge/Powered%20by-LangGraph-orange.svg)](https://python.langchain.com/docs/langgraph/)
+[![Self-built](https://img.shields.io/badge/Engine-Self--built-green.svg)](src/runtime/)
+[![TypeScript](https://img.shields.io/badge/Web-React%20%2B%20TypeScript-blue.svg)](web/)
+[![Electron](https://img.shields.io/badge/Desktop-Electron-47848F.svg)](desktop/)
 
-> **GraphCoder（图灵智开）** 是基于 LangGraph 的多智能体自动化编程系统。  
-> 通过“需求分析 / 架构设计 / 编码 / 审查 / 测试”的图状协作，实现可追溯、可扩展、可回环的软件生成流。  
-> 中文名双关“图灵”与“图（Graph）”，既致敬 AI 源头，也强调核心抽象是“图驱动”。
+> GraphCoder v2 采用 **Codex App Server + Maka + Hermes** 的设计模式（参考其架构与
+> 交互风格，引擎完全自研）：所有功能（Agent 循环、
+> 工具、权限、存储）下沉到可嵌入的 **GraphCoder Runtime**；CLI/TUI 与 Desktop
+> 通过 **app-server 子进程 + JSON-RPC over stdio** 接入（无 HTTP 后端），Web 仅保留
+> 纯传输层。执行引擎为**自研多 Provider Agent 引擎**，多 Agent 构建流水线降为调度层，SQLite 为
+> 唯一权威存储（追加式事件日志）。
 
-## 🧭 当前状态
+## ✨ 功能特性
 
-GraphCoder 目前是**可运行的最小骨架**：已完成模块化 `src/` 布局、环境配置加载、LLM 工厂、简单问答链路和 CLI 入口；完整的多 Agent 图协作（PM / Architect / Developer / Reviewer / QA）是下一阶段目标，详细设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+- **App Server 协议**（Codex 模式）：Item / Turn / Thread 三层原语，
+  `item/started → delta → completed` 统一所有界面流式渲染；`approval/requested`
+  可暂停回合等待客户端响应
+- **自研 Agent 引擎**：多 Provider 原生流式（OpenAI 兼容 / Anthropic / Gemini /
+  Ollama / 自定义）+ 工具调用循环（文件/Shell/Web）
+- **多 Agent 调度层**：PM → 架构师 → 开发者 → 审查 → QA，QA 失败自动回环
+- **细粒度权限引擎**：`allow / ask / deny` ×（命令模式/工具/目录），危险命令拦截、
+  人工审批暂停/恢复、决策记忆、watchdog 超时拒绝
+- **Maka 式存储**：SQLite 权威（sessions / runtime_events / tasks / settings /
+  permissions / usage），v1 JSON 自动迁移
+- **三端客户端**：Textual 全屏 TUI（Codex 语义配色 + slash 命令）、Electron
+  Desktop（IPC 直连 app-server）、React Web（对话 + 工作台融合风格）
 
-## 📂 项目结构（当前可预期）
+## 🚀 快速开始
 
-```
-GraphCoder/
-├── .env
-├── .env.example
-├── .gitignore
-├── README.md
-├── config.py
-├── main.py
-├── requirements.txt
-│
-├── docs/               # 架构、Agent、节点、API、路线图文档
-├── .github/            # Issue/PR 模板与 CI 工作流
-│
-└── src/
-    ├── core/          # 状态 schema、图构建（规划中）
-    ├── agents/        # PM / Architect / Coder / Reviewer / QA 定义（规划中）
-    ├── nodes/         # LangGraph 节点实现（当前：simple_chain.py）
-    ├── data/          # 需求读取 / 产出落盘（规划中）
-    ├── api/           # CLI 入口（当前：cli.py）
-    ├── prompts/       # 提示词模板（规划中）
-    ├── utils/         # 辅助函数（当前：llm.py）
-    └── tests/         # 单元与集成测试（规划中）
-```
+### 1. 安装
 
-## 🏗️ 架构概览（核心图谱）
-
-> **说明：** 下图是目标架构。当前仓库只实现了最小问答链路（`src/nodes/simple_chain.py`），完整 Agent 网格会在后续版本中逐步接入。
-
-```
-[User Request]
-      │
-      ▼
-┌──────────────────────────────────────────────────┐
-│                 GraphCoder Core                   │
-│          LangGraph State Machine Mesh             │
-│  ┌────────────┐   ┌────────────┐   ┌───────────┐  │
-│  │  PM 节点    │──▶│  AD 节点   │──▶│ Dev 节点  │  │
-│  └────────────┘   └────────────┘   └─────┬─────┘  │
-│        ▲                                │        │
-│        │                    ┌────────────┴──────┐ │
-│        └────────────────────│ Reviewer 节点    │◀┘
-│                              └───────┬─────────┘
-│                                      │
-│                              ┌───────▼─────────┐
-│                              │  QA 节点        │
-│                              └───────┬─────────┘
-│                                      │
-│                            [可回环修复流程]
-└──────────────────────────────────────────────────┘
-                        │
-                        ▼
-                 [Final Output]
-```
-
-- **PM：** 需求澄清、输出 PRD 与成功标准；
-- **AD：** 系统设计、技术选型与架构分片；
-- **Dev：** 编码实现、修改建议时的重写；
-- **Reviewer：** 静态审查与结构化反馈；
-- **QA：** 测试定义、质量门禁、是否放行。
-
-## 🚀 快速开始（Getting Started）
-
-### 前置要求
-
-- Python 3.13+（[下载地址](https://www.python.org/downloads/)）
-- pip 包管理器
-
-> **Windows 用户注意：** 安装 Python 时务必勾选 **"Add Python to PATH"**。
-
----
-
-### 1. 创建 Python 环境
-
-#### macOS / Linux
-
-**方式 A：conda（推荐）**
 ```bash
-conda create -n graphcoder python=3.13 -y
-conda activate graphcoder
-```
-
-**方式 B：venv（系统自带）**
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-#### Windows
-
-**PowerShell**
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-> 如果执行 `Activate.ps1` 报错（禁止加载脚本），先运行：
-> ```powershell
-> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-> ```
-
-**CMD**
-```cmd
-.venv\Scripts\activate.bat
-```
-
----
-
-### 2. 安装依赖
-```bash
+conda create -n graphcoder python=3.13 -y && conda activate graphcoder
 pip install -r requirements.txt
+cp .env.example .env   # 填入 API 密钥
+
+cd web && npm install && cd ../desktop && npm install
 ```
 
-### 3. 配置环境变量
+> app-server 与 TUI/Web 运行在同一 `graphcoder` 环境（无需额外运行时）。
+
+### 2. 运行
+
 ```bash
-cp .env.example .env
-```
-
-最小必须配置：
-```bash
-OPENAI_API_KEY=your-openai-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
-MODEL_NAME=step-3.7-flash
-TEMPERATURE=1.0
-MAX_TOKENS=256000
-```
-
-其中 `MODEL_NAME`、`TEMPERATURE`、`MAX_TOKENS` 在 `config.py` 中已有默认值，按需覆盖即可；`MAX_TOKENS` 目前由配置模块加载，LLM 工厂尚未消费该参数。
-
-## 🏃 运行
-
-### 运行最小示例
-```bash
+# 全屏 TUI（默认，Codex 风格）
 python main.py
+
+# 非交互 exec 模式（JSONL 输出，退出码反映成败）
+python main.py run "写一个 FastAPI 待办应用" --mode build
+
+# Web 传输层（静态 + JSON-RPC/SSE 桥）
+python main.py serve --port 8000
+
+# 手动启动 app-server（stdio JSON-RPC）
+python -m src.api.app_server
+
+# Desktop（Electron，自动 spawn app-server 子进程）
+cd desktop && npm start
 ```
 
-当前最小示例用于验证 LLM 调用链路，后续会替换为完整的 LangGraph 运行入口。
+TUI slash 命令：`/new` `/graph` `/chat` `/model <id>` `/permission allow|ask|deny <命令>`
+`/resume` `/help` `/exit`。
 
-## 🔧 常见问题
+## 🏗️ 架构
 
-### 依赖报 `No module named`
-确认已进入 `graphcoder` 环境后，重新执行第二步安装。
+```
+Web (HTTP+SSE)   Desktop (Electron IPC)   TUI/CLI (stdio JSON-RPC)
+        \                 |                     /
+         \                v                    /
+          └──> graphcoder app-server (JSON-RPC lite over stdio)
+                         |
+                    GraphCoder Runtime
+              Agent Engine + Orchestrator
+              Permission Engine + Event Bus
+                         |
+                    SQLite 权威存储（事件日志）
+```
 
-### 当前还不能直接生成完整项目
-当前为最小骨架；完整自动化能力会逐步在 `src/agents`、`src/nodes`、`src/api` 中落地。
+详细设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
-## 📚 更多文档
+## 📡 App Server 协议摘要
 
-- [系统架构](docs/ARCHITECTURE.md)
-- [Agent 规范](docs/AGENTS.md)
-- [节点实现指南](docs/NODES.md)
-- [API 参考](docs/API_REFERENCE.md)
-- [项目路线图](docs/ROADMAP.md)
+请求：`{"id": 1, "method": "threads/prompt", "params": {...}}`
+
+| 方法 | 说明 |
+|---|---|
+| `initialize` | 握手，返回 capabilities 与默认值 |
+| `threads/create/list/get/rename/archive/fork/delete` | 线程生命周期 |
+| `threads/prompt` | 提交回合（chat / build） |
+| `threads/resume` | 续跑中断任务 |
+| `approvals/respond` | 审批响应（once/session/always） |
+| `models/list` | 模型 Provider 列表 |
+| `permissions/add/remove/list` | 权限策略管理 |
+
+通知：`thread/started`、`turn/started|completed`、`item/started|delta|completed`、
+`approval/requested`、`error`。完整协议见 [docs/API_REFERENCE.md](docs/API_REFERENCE.md)。
+
+## 🧪 测试
+
+```bash
+conda run -n graphcoder pytest src/tests/ -v
+conda run -n graphcoder ruff check src/ main.py config.py
+conda run -n graphcoder mypy src/ --ignore-missing-imports
+```

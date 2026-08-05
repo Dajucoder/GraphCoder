@@ -15,6 +15,14 @@ __pycache__/
 venv/
 env/
 ENV/
+node_modules/
+
+# Web / Desktop build artifacts
+web/dist/
+web/node_modules/
+web/tsconfig.tsbuildinfo
+desktop/node_modules/
+desktop/dist/
 
 # Packaging and build artifacts
 build/
@@ -26,6 +34,7 @@ pip-wheel-metadata/
 
 # Test, coverage, and type-checker caches
 .pytest_cache/
+.pytest_cache
 .coverage
 .coverage.*
 htmlcov/
@@ -51,4 +60,5 @@ Thumbs.db
 
 # Project-local tooling and generated agent data
 .agents/
+/.graphcoder/
 /.mcp.json

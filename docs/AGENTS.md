@@ -3,9 +3,9 @@
 Each agent in GraphCoder is a specialized node in the LangGraph state machine.
 This document describes the role, inputs, outputs, and behavior of each agent.
 
-> **Status:** The agent mesh below is the target architecture. None of the
-> `src/agents/*.py` modules or `src/prompts/*_prompt.py` templates exist yet;
-> the file paths shown are planned locations.
+> **Status:** Implemented. Agent role prompts live in `src/agents/roles.py`
+> (chat, PM, Architect, Developer, Reviewer, QA); the LangGraph pipeline is in
+> `src/core/graph.py`.
 
 ---
 

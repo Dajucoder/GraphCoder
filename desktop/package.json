@@ -1,0 +1,31 @@
+{
+  "name": "graphcoder-desktop",
+  "version": "1.0.0",
+  "description": "GraphCoder Desktop — 多 Agent 编程助手",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --mac dmg",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.graphcoder.app",
+    "productName": "GraphCoder",
+    "files": ["main.cjs", "preload.cjs"],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

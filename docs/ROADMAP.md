@@ -48,7 +48,7 @@
 - [ ] 为 macOS 配置 Developer ID、Hardened Runtime、entitlements 和公证。
 - [ ] 为 Windows 配置 Authenticode 签名和时间戳服务。
 - [ ] 将基础 Python 测试、Web build 和 Desktop 语法检查纳入发布工作流前置门禁。
-- [ ] 为发布产物自动生成 SHA-256 并附加到 GitHub Release。
+- [x] 为发布产物自动生成 SHA-256 并附加到 GitHub Release。
 - [ ] 以 Desktop manifest 作为安装包版本来源，并自动同步 tag、产物名和发布说明。
 - [ ] 增加安装版 Runtime 崩溃、升级和数据保留回归测试。
 

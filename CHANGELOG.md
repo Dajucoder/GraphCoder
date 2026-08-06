@@ -5,6 +5,14 @@ All notable changes to GraphCoder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Desktop release workflow now attaches the built installers and per-file
+  SHA-256 checksums to the GitHub Release when a `v*` tag is pushed, creating
+  the release with generated notes when it does not exist yet. Manual
+  `workflow_dispatch` runs still only upload Actions artifacts.
+
 ## [2.1.0] — 2026-08-06
 
 ### Added

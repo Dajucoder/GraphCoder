@@ -87,3 +87,36 @@ jobs:
           name: GraphCoder-Windows-x64
           path: release/*.exe
           if-no-files-found: error
+
+  publish:
+    name: Publish Release Assets
+    needs: [macos, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        run: |
+          cd dist
+          for f in *.dmg *.exe; do
+            [ -e "$f" ] || continue
+            sha256sum "$f" > "$f.sha256"
+          done
+          ls -lh
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --title "$tag" --generate-notes
+          fi
+          gh release upload "$tag" dist/* --repo "$GITHUB_REPOSITORY" --clobber

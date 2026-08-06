@@ -173,8 +173,9 @@ npm --prefix desktop run dist:win
 输出为 `release/GraphCoder-<version>-win-x64.exe`。NSIS 安装器允许选择目录，并创建
 桌面与开始菜单快捷方式。
 
-也可手动触发 GitHub Actions 的 `Desktop Release` workflow。工作流上传构建 artifact，
-当前不会自动创建 GitHub Release 或执行代码签名。
+也可手动触发 GitHub Actions 的 `Desktop Release` workflow。手动触发只上传构建
+artifact；推送 `v*` tag 时还会自动创建（或复用）GitHub Release 并附加安装包和
+SHA-256 校验和。代码签名当前不在 workflow 中执行。
 
 ## Verification Checklist
 

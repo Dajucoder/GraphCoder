@@ -15,8 +15,9 @@ NotificationHandler = Callable[[str, dict[str, Any]], Awaitable[None] | None]
 
 def runtime_python() -> str:
     """Locate the Python interpreter that can run the app-server."""
-    env = os.getenv("GRAPHCODER_RUNTIME_PYTHON")
-    if env:
+    env = (os.getenv("GRAPHCODER_RUNTIME_PYTHON") or "").strip()
+    # Ignore placeholder values (e.g. dotenv mis-parsed inline comments).
+    if env and not env.startswith("#"):
         return env
     # Prefer the interpreter that launched us (the conda env python has all deps).
     return sys.executable

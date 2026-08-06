@@ -15,8 +15,9 @@ log = get_logger(__name__)
 
 def graphcoder_home() -> Path:
     """Return the GraphCoder data directory (default: ~/.graphcoder)."""
-    env = os.getenv("GRAPHCODER_HOME")
-    if env:
+    env = (os.getenv("GRAPHCODER_HOME") or "").strip()
+    # Ignore placeholder values (e.g. dotenv mis-parsed inline comments).
+    if env and not env.startswith("#"):
         return Path(env).expanduser()
     home = Path.home() / ".graphcoder"
     try:

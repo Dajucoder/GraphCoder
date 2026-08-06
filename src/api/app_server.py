@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,7 @@ from src.utils.settings import SettingsStore, graphcoder_home
 log = get_logger(__name__)
 
 PROTOCOL_VERSION = "1.0"
+APP_VERSION = "2.1.0"
 
 
 class AppServer:
@@ -51,6 +53,7 @@ class AppServer:
         self.stdin = stdin or sys.stdin
         self.stdout = stdout or sys.stdout
         self.options = options or {}
+        self._started_at = time.time()
         self.bus = EventBus()
         self.approvals = ApprovalHub(bus=self.bus)
 
@@ -196,9 +199,12 @@ class AppServer:
                 "threads": ["create", "list", "get", "rename", "archive", "fork", "delete", "prompt", "resume"],
                 "approvals": ["list", "respond"],
                 "models": ["list"],
-                "providers": ["upsert", "delete"],
+                "providers": ["upsert", "delete", "test"],
                 "permissions": ["list", "add", "remove"],
                 "settings": ["get", "set"],
+                "usage": ["stats", "daily"],
+                "health": ["summary"],
+                "data": ["summary"],
                 "workspace": ["get", "set", "files"],
             },
             "defaults": {
@@ -453,7 +459,13 @@ class AppServer:
 
 
     async def rpc_models_list(self, params: dict[str, Any]) -> dict[str, Any]:
+        from src.providers.registry import env_provider
+
+        env_cfg = env_provider()
         providers = [
+            {**env_cfg.public(), "custom": False}
+        ] if env_cfg else []
+        providers += [
             {**provider.public(), "custom": False} for provider in BUILTIN_PRESETS
         ] + [
             {**provider.public(), "custom": True}
@@ -470,8 +482,6 @@ class AppServer:
             raise KeyError("provider not found")
         if target.get("kind") != "openai-compatible":
             return {"provider": target, "models": []}
-
-        from src.providers.base import ProviderConfig
 
         provider_object = next(
             (
@@ -551,6 +561,7 @@ class AppServer:
         self.options.update(options)
         self.threads.options.update(options)
         self.threads.adapter.options.update(options)
+        self.threads.adapter.refresh_tools()
         return {"ok": True}
 
     async def rpc_permissions_list(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -575,6 +586,149 @@ class AppServer:
         engine.load_rules([dict(r) for r in rules])
         self.threads.adapter.permission = engine
         return {"ok": ok}
+
+    # ---------------- settings center: probes & summaries ----------------
+    async def rpc_providers_test(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Probe a provider connection with a minimal call."""
+        from src.providers.base import ChatMessage
+        from src.providers.registry import build_provider, env_provider
+
+        provider_id = str(params.get("id", ""))
+        config: ProviderConfig | None = None
+        if provider_id == "env":
+            config = env_provider()
+        elif provider_id:
+            config = next(
+                (
+                    p
+                    for p in BUILTIN_PRESETS + self.settings.custom_providers()
+                    if p.id == provider_id
+                ),
+                None,
+            )
+        if config is None:
+            fields = ProviderConfig.__dataclass_fields__
+            payload = {k: v for k, v in dict(params).items() if k in fields}
+            if not str(payload.get("model", "")).strip():
+                raise KeyError("缺少模型名称，无法测试连接")
+            payload.setdefault("name", "probe")
+            config = ProviderConfig(**payload)
+
+        provider = build_provider(config)
+        started = time.monotonic()
+
+        def latency() -> int:
+            return int((time.monotonic() - started) * 1000)
+
+        try:
+            if config.kind == "ollama":
+                import httpx
+
+                base = (config.base_url or "http://127.0.0.1:11434").rstrip("/")
+                async with httpx.AsyncClient(timeout=10) as client:
+                    resp = await client.get(f"{base}/api/tags")
+                    resp.raise_for_status()
+                return {"ok": True, "latency_ms": latency(), "detail": "Ollama 服务可达", "error": ""}
+            text, _ = await asyncio.wait_for(
+                provider.complete([ChatMessage(role="user", content="回复 ok")]),
+                timeout=20,
+            )
+            return {"ok": True, "latency_ms": latency(), "detail": text[:120], "error": ""}
+        except Exception as exc:  # noqa: BLE001 - 探针必须返回错误而非抛出
+            return {
+                "ok": False,
+                "latency_ms": latency(),
+                "detail": "",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+
+    async def rpc_usage_daily(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Per-day usage for the last N days plus a per-model breakdown."""
+        days = max(1, min(int(params.get("days", 14)), 90))
+        db = self.store._db_or_raise()
+        cursor = await db.execute(
+            "SELECT date(ts, 'unixepoch', 'localtime') AS day, "
+            "COALESCE(SUM(input_tokens),0) AS it, COALESCE(SUM(output_tokens),0) AS ot, "
+            "COALESCE(SUM(cost),0) AS cost, COUNT(*) AS calls "
+            "FROM usage WHERE ts >= ? GROUP BY day ORDER BY day",
+            (time.time() - days * 86400,),
+        )
+        daily = [
+            {
+                "day": row["day"],
+                "input_tokens": row["it"],
+                "output_tokens": row["ot"],
+                "cost": row["cost"],
+                "calls": row["calls"],
+            }
+            for row in await cursor.fetchall()
+        ]
+        cursor = await db.execute(
+            "SELECT COALESCE(model, '未知') AS model, COALESCE(provider, '') AS provider, "
+            "COALESCE(SUM(input_tokens + output_tokens),0) AS tokens, "
+            "COALESCE(SUM(cost),0) AS cost, COUNT(*) AS calls "
+            "FROM usage GROUP BY model, provider ORDER BY tokens DESC LIMIT 8"
+        )
+        by_model = [
+            {
+                "model": row["model"],
+                "provider": row["provider"],
+                "tokens": row["tokens"],
+                "cost": row["cost"],
+                "calls": row["calls"],
+            }
+            for row in await cursor.fetchall()
+        ]
+        cursor = await db.execute(
+            "SELECT COUNT(*) AS c FROM tasks WHERE created_at >= ?",
+            (time.time() - 86400,),
+        )
+        row = await cursor.fetchone()
+        today_tasks = row["c"] if row is not None else 0
+        return {"daily": daily, "by_model": by_model, "today_tasks": today_tasks}
+
+    async def rpc_health_summary(self, params: dict[str, Any]) -> dict[str, Any]:
+        import platform
+
+        home = graphcoder_home()
+        db_path = self.store.path
+        active = self._resolve_provider()
+        return {
+            "version": APP_VERSION,
+            "protocol": PROTOCOL_VERSION,
+            "python": platform.python_version(),
+            "system": f"{platform.system()} {platform.release()}",
+            "home": str(home),
+            "db_path": str(db_path),
+            "db_size": db_path.stat().st_size if db_path.exists() else 0,
+            "workspace": str(self.workspace),
+            "uptime_s": int(time.time() - self._started_at),
+            "active_provider": {
+                "id": active.id,
+                "name": active.name,
+                "model": active.model,
+                "has_key": bool(active.resolved_api_key()),
+            },
+        }
+
+    async def rpc_data_summary(self, params: dict[str, Any]) -> dict[str, Any]:
+        db = self.store._db_or_raise()
+        counts: dict[str, int] = {}
+        for table in ("sessions", "tasks", "runtime_events", "memory", "artifacts"):
+            cursor = await db.execute(f"SELECT COUNT(*) AS c FROM {table}")
+            row = await cursor.fetchone()
+            counts[table] = row["c"] if row is not None else 0
+        db_path = self.store.path
+        settings_path = self.settings.path
+        return {
+            "home": str(graphcoder_home()),
+            "db_path": str(db_path),
+            "db_size": db_path.stat().st_size if db_path.exists() else 0,
+            "settings_path": str(settings_path),
+            "settings_size": settings_path.stat().st_size if settings_path.exists() else 0,
+            "counts": counts,
+        }
+
 
 
 async def amain(workspace: Path | None = None, home: Path | None = None) -> None:

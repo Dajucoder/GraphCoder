@@ -101,6 +101,12 @@ export const api = {
   upsertProvider: (provider: ProviderInput) =>
     rpc<ModelInfo>("providers/upsert", { ...provider }),
   deleteProvider: (id: string) => rpc<{ ok: boolean }>("providers/delete", { id }),
+  testProvider: (params: Record<string, unknown>) =>
+    rpc<ProviderTestResult>("providers/test", params),
+  usageDaily: (days = 14) =>
+    rpc<{ daily: DailyUsage[]; by_model: ModelUsage[]; today_tasks: number }>("usage/daily", { days }),
+  healthSummary: () => rpc<HealthSummary>("health/summary"),
+  dataSummary: () => rpc<DataSummary>("data/summary"),
   setOption: (options: Record<string, unknown>) => rpc<{ ok: boolean }>("settings/set", { options }),
   getSettings: () => rpc<SettingsInfo>("settings/get"),
   getWorkspace: () => rpc<WorkspaceInfo>("workspace/get"),
@@ -234,4 +240,49 @@ export interface SettingsInfo {
   active_provider?: string;
   options: Record<string, unknown>;
   permissions: PermissionRule[];
+}
+
+export interface ProviderTestResult {
+  ok: boolean;
+  latency_ms: number;
+  detail: string;
+  error: string;
+}
+
+export interface DailyUsage {
+  day: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost: number;
+  calls: number;
+}
+
+export interface ModelUsage {
+  model: string;
+  provider: string;
+  tokens: number;
+  cost: number;
+  calls: number;
+}
+
+export interface HealthSummary {
+  version: string;
+  protocol: string;
+  python: string;
+  system: string;
+  home: string;
+  db_path: string;
+  db_size: number;
+  workspace: string;
+  uptime_s: number;
+  active_provider: { id: string; name: string; model: string; has_key: boolean };
+}
+
+export interface DataSummary {
+  home: string;
+  db_path: string;
+  db_size: number;
+  settings_path: string;
+  settings_size: number;
+  counts: Record<string, number>;
 }

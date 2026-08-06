@@ -94,6 +94,22 @@ BUILTIN_PRESETS: list[ProviderConfig] = [
         api_key_env="STEPFUN_API_KEY",
         model="step-2-16k",
     ),
+    ProviderConfig(
+        id="grok",
+        name="xAI Grok",
+        kind="openai-compatible",
+        base_url="https://api.x.ai/v1",
+        api_key_env="XAI_API_KEY",
+        model="grok-4",
+    ),
+    ProviderConfig(
+        id="siliconflow",
+        name="SiliconFlow",
+        kind="openai-compatible",
+        base_url="https://api.siliconflow.cn/v1",
+        api_key_env="SILICONFLOW_API_KEY",
+        model="deepseek-ai/DeepSeek-V3",
+    ),
 ]
 
 

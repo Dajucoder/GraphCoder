@@ -65,6 +65,14 @@ class AgentEngine:
         self._add_memory_tools()
         self.usage: dict[str, int] = {"input_tokens": 0, "output_tokens": 0}
 
+    def refresh_tools(self) -> None:
+        """Rebuild the tool registry so option changes (enable_web etc.) apply."""
+        self.tools = all_tools(
+            enable_shell=self.options.get("enable_shell", True),
+            enable_web=self.options.get("enable_web", True),
+        )
+        self._add_memory_tools()
+
     # ------------------------------------------------------------------
     async def run(
         self,

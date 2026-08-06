@@ -5,7 +5,7 @@
 
 ## 当前能力
 
-截至 2026-08-05，仓库已实现：
+截至 2026-08-06，仓库已实现：
 
 - 自研多 Provider Agent Engine，支持 OpenAI-compatible、Anthropic、Gemini、Ollama
   和自定义 Provider。
@@ -19,6 +19,8 @@
 - PyInstaller 独立 Runtime、electron-builder DMG/NSIS 构建配置。
 - macOS Apple Silicon DMG 本机构建、挂载和启动验证。
 - macOS arm64 与 Windows x64 的 GitHub Actions 桌面构建工作流。
+- 全屏设置中心（通用、模型、用量、数据、权限、健康、关于），内置 Provider
+  目录和连接测试探针。
 
 `src/core/graph.py` 仍保留 LangGraph 兼容流水线，但 Desktop/Web 的生产任务使用
 `src/runtime/` 自研执行链。Web 当前没有 WebSocket 传输，实时事件使用 SSE。
@@ -66,7 +68,7 @@
 - [ ] 自动更新和可验证的更新清单。
 - [ ] 大文件、二进制文件和图片的安全预览。
 - [ ] 更完整的任务恢复、重试、导出和错误诊断界面。
-- [ ] Provider 连接测试、模型发现和错误提示一致性。
+- [ ] Provider 模型发现、错误提示一致性，以及连接测试探针的覆盖面扩展。
 - [ ] Desktop 与 Web 双传输的端到端 UI 测试。
 - [ ] Windows/macOS 快捷键、窗口状态和无障碍检查。
 

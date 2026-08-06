@@ -20,6 +20,7 @@ GraphCoder 独立维护。
 - 工作区文件读取、搜索、写入、Shell、网页和长期记忆工具
 - `allow / ask / deny` 权限规则与运行时审批
 - 会话、分支、任务、事件、产物、记忆和用量的本地持久化
+- 全屏设置中心：模型连接与测试、用量统计、数据与权限、健康检查
 - Electron 原生目录选择、文件打开和 Finder/资源管理器定位
 - macOS Apple Silicon DMG 和 Windows x64 NSIS 安装包构建链
 
@@ -28,12 +29,12 @@ GraphCoder 独立维护。
 已打包的桌面应用包含 Electron、Web 资源和冻结后的 Python Runtime。最终用户无需
 安装 Python、Node.js，也不需要保留源码。
 
-当前正式版本为 `v2.0.1`，安装包从
+当前正式版本为 `v2.1.0`，安装包从
 [GitHub Releases](https://github.com/Dajucoder/GraphCoder/releases/latest) 下载：
 
 ```text
-GraphCoder-2.0.1-mac-arm64.dmg
-GraphCoder-2.0.1-win-x64.exe
+GraphCoder-2.1.0-mac-arm64.dmg
+GraphCoder-2.1.0-win-x64.exe
 ```
 
 macOS 首次打开未签名测试包时，在 Finder 中右键 GraphCoder 并选择“打开”。公开分发
@@ -98,7 +99,7 @@ python main.py providers test deepseek
 ```
 
 内置 Provider ID：`openai`、`anthropic`、`gemini`、`ollama`、`deepseek`、
-`moonshot`、`zhipu`、`qwen`、`stepfun`。
+`moonshot`、`zhipu`、`qwen`、`stepfun`、`grok`、`siliconflow`。
 
 桌面端自定义 API Key 保存在本机应用数据目录的 `settings.json` 中，RPC 响应不会返回
 明文，但该文件当前不是系统钥匙串加密存储。详见 [安全策略](SECURITY.md)。
@@ -148,7 +149,7 @@ node --check desktop/preload.cjs
 git diff --check
 ```
 
-当前测试基线为 `40 passed`。CI 的 mypy 仍采用 best-effort 策略；本地严格检查需要安装
+当前测试基线为 `44 passed`。CI 的 mypy 仍采用 best-effort 策略；本地严格检查需要安装
 缺失的第三方类型桩，例如 `types-jsonschema`。
 
 ## 数据与安全

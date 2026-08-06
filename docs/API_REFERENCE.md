@@ -81,9 +81,12 @@ stdout 只用于协议帧，日志写入 stderr。嵌入客户端必须持续读
     "threads": ["create", "list", "get", "rename", "archive", "fork", "delete", "prompt", "resume"],
     "approvals": ["list", "respond"],
     "models": ["list"],
-    "providers": ["upsert", "delete"],
+    "providers": ["upsert", "delete", "test"],
     "permissions": ["list", "add", "remove"],
     "settings": ["get", "set"],
+    "usage": ["stats", "daily"],
+    "health": ["summary"],
+    "data": ["summary"],
     "workspace": ["get", "set", "files"]
   },
   "defaults": {
@@ -96,8 +99,8 @@ stdout 只用于协议帧，日志写入 stderr。嵌入客户端必须持续读
 ```
 
 当前 `capabilities` 是简化的兼容声明，未列出已经实现的 `threads/regenerate`、`tasks/*`、
-`artifacts/*`、`memory/*` 和 `usage/stats`。客户端可调用本文列出的实际方法，但做协议协商
-时不要把未声明能力当作跨版本稳定承诺。
+`artifacts/*` 和 `memory/*`。客户端可调用本文列出的实际方法，但做协议协商时不要把未声明
+能力当作跨版本稳定承诺。
 
 ## Thread 方法
 
@@ -215,8 +218,17 @@ Task 状态为 `pending`、`running`、`completed`、`error` 或 `cancelled`：
 | `models/list` | `{}` | `{models, active}` |
 | `providers/upsert` | Provider input | 脱敏 Provider |
 | `providers/delete` | `{id}` | `{ok}` |
+| `providers/test` | Provider id 或内联字段 | `{ok, latency_ms, detail, error}` |
+| `usage/daily` | `{days?}` | `{daily, by_model, today_tasks}` |
+| `health/summary` | `{}` | Runtime 版本、系统、数据目录、运行时长等健康摘要 |
+| `data/summary` | `{}` | 数据目录、`settings.json` 大小和各表记录数 |
 | `settings/get` | `{}` | settings + permissions |
 | `settings/set` | `{options}` | `{ok}` |
+
+`models/list` 会依次返回环境变量配置的 Provider（存在时）、内置 Provider 预置和自定义
+Provider。`providers/test` 接受已有 Provider 的 `id`（`env` 表示环境变量 Provider），或
+直接接受 Provider 内联字段做一次性探测；探针失败时返回错误信息而不是抛出异常。
+`usage/daily` 的 `days` 取值 1-90，默认 14。
 
 Provider input 字段：
 

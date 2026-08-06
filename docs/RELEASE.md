@@ -1,7 +1,8 @@
 # Release Guide
 
 本文档描述 GraphCoder Desktop 的可重复发布流程。当前 CI 生成 macOS arm64 DMG 和
-Windows x64 NSIS EXE；不自动发布到 PyPI，也不自动创建 GitHub Release。
+Windows x64 NSIS EXE；推送 `v*` tag 时会自动创建（或复用已有）GitHub Release，并把
+安装包和 SHA-256 校验和文件附加为 Release 产物。PyPI 仍不自动发布。
 
 ## Version Sources
 
@@ -80,6 +81,9 @@ Windows 产物必须在真实 Windows 环境安装和启动验证。不要把 ma
 - `macos-14` 构建 arm64 DMG
 - `windows-latest` 构建 x64 NSIS EXE
 - 两个平台分别上传 Actions artifact
+- `ubuntu-latest` publish job：仅由 `v*` tag 触发，下载两个安装包，生成逐文件
+  `*.sha256` 校验和；Release 不存在时用自动生成的说明创建，已存在时只附加产物，
+  不覆盖人工维护的 Release notes
 
 从 Desktop manifest 读取版本并推送 tag：
 
@@ -88,6 +92,9 @@ VERSION=$(node -p "require('./desktop/package.json').version")
 git tag -a "v${VERSION}" -m "GraphCoder v${VERSION}"
 git push origin "v${VERSION}"
 ```
+
+推送 tag 后，GitHub Actions 会自动构建并把安装包附加到同名 Release；在 Actions 页面
+确认 publish job 成功，再检查 Release 产物和校验和是否齐全。
 
 项目允许 Git 推送走本地 `7890` 代理时，可为单次命令配置：
 
@@ -127,12 +134,14 @@ Actions Secrets，不写入 `.env` 或仓库文件。签名后在干净 Windows 
 
 ## Release Publication
 
-建议发布附件：
+CI 的 publish job 会自动附加以下产物到对应 `v*` tag 的 GitHub Release：
 
 - macOS arm64 DMG
 - Windows x64 NSIS EXE
-- 每个产物的 SHA-256 文件
-- Release notes，包含变更、迁移、已知限制和最低系统要求
+- 每个产物的 SHA-256 校验和文件（`*.sha256`）
+
+Release notes 仍需人工维护，建议包含变更、迁移、已知限制和最低系统要求。可以先用
+`gh release create` 写好说明再推送 tag，CI 会复用已有 Release 只附加产物。
 
 当前支持矩阵：
 

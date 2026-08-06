@@ -5,7 +5,6 @@ import {
   Bot,
   Box,
   Brain,
-  Check,
   ChevronDown,
   ChevronRight,
   CircleStop,
@@ -19,7 +18,6 @@ import {
   History,
   ListTodo,
   MessageSquare,
-  Moon,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -27,14 +25,12 @@ import {
   PanelRightOpen,
   Paperclip,
   Plus,
-  Save,
   Search,
   Send,
   Settings,
   ShieldCheck,
   Sparkles,
   Split,
-  Sun,
   Trash2,
   X,
 } from "lucide-react";
@@ -54,19 +50,18 @@ import type {
   FileEntry,
   MemoryEntry,
   ModelInfo,
-  PermissionRule,
   RuntimeEvent,
   SettingsInfo,
-  ProviderInput,
   TaskInfo,
   ThreadDetail,
   ThreadSummary,
   WorkspaceInfo,
 } from "./api";
+import SettingsSurface, { type Theme } from "./SettingsSurface";
+import { EmptyPanel, IconButton, MemoryManager, PageHeading } from "./widgets";
 
 type View = "chat" | "tasks" | "artifacts" | "memory";
 type WorkbarTab = "tasks" | "files" | "activity";
-type Theme = "light" | "dark";
 
 interface UIItem {
   id: string;
@@ -210,6 +205,8 @@ export default function App() {
       setActiveModel(modelData.active);
       setWorkspace(workspaceData);
       setSettings(settingsData);
+      const defaultMode = settingsData.options.default_mode;
+      if (defaultMode === "build" || defaultMode === "chat") setMode(defaultMode);
       const first = threadData.threads.find((thread) => !thread.archived);
       if (first && !currentIdRef.current) await openThread(first.id);
     } catch (reason) {
@@ -255,8 +252,19 @@ export default function App() {
   }, [bootstrap, loadThreads, refreshThreadData]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const root = document.documentElement;
     localStorage.setItem("graphcoder-theme", theme);
+    if (theme !== "system") {
+      root.dataset.theme = theme;
+      return;
+    }
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      root.dataset.theme = query.matches ? "dark" : "light";
+    };
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
   }, [theme]);
 
   useEffect(() => {
@@ -475,21 +483,21 @@ export default function App() {
       </div>
 
       {settingsOpen && settings && (
-        <SettingsModal
+        <SettingsSurface
           settings={settings}
           models={models}
           activeModel={activeModel}
           theme={theme}
-          memory={memory}
-          usage={usage}
+          workspace={workspace}
           threadId={current.id}
           onTheme={setTheme}
           onModel={switchModel}
           onModelsChanged={refreshModels}
+          onSettings={setSettings}
+          onWorkspace={switchWorkspace}
+          onMemoryChanged={() => refreshThreadData(current.id)}
           showToast={showToast}
           onClose={() => setSettingsOpen(false)}
-          onSettings={setSettings}
-          onMemoryChanged={() => refreshThreadData(current.id)}
         />
       )}
       {toast && <div className="toast">{toast}</div>}
@@ -1098,294 +1106,6 @@ function ModuleView(props: {
   );
 }
 
-function SettingsModal(props: {
-  settings: SettingsInfo;
-  models: ModelInfo[];
-  activeModel: string;
-  theme: Theme;
-  memory: MemoryEntry[];
-  usage: { total_tokens: number; calls: number; cost: number };
-  threadId: string;
-  onTheme: (theme: Theme) => void;
-  onModel: (id: string) => void;
-  onModelsChanged: () => Promise<void>;
-  showToast: (message: string) => void;
-  onClose: () => void;
-  onSettings: (settings: SettingsInfo) => void;
-  onMemoryChanged: () => void;
-}) {
-  type Section = "general" | "models" | "permissions" | "memory" | "usage" | "about";
-  const [section, setSection] = useState<Section>("general");
-  const nav: Array<{ key: Section; label: string; icon: typeof Settings }> = [
-    { key: "general", label: "通用", icon: Settings },
-    { key: "models", label: "模型", icon: Bot },
-    { key: "permissions", label: "权限", icon: ShieldCheck },
-    { key: "memory", label: "记忆", icon: Brain },
-    { key: "usage", label: "用量", icon: History },
-    { key: "about", label: "关于", icon: Sparkles },
-  ];
-  return (
-    <div className="modal-backdrop" onMouseDown={props.onClose}>
-      <div className="settings-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-        <aside>
-          <div className="settings-title"><Sparkles /><strong>设置</strong></div>
-          <nav>
-            {nav.map((item) => {
-              const Icon = item.icon;
-              return <button key={item.key} className={section === item.key ? "active" : ""} onClick={() => setSection(item.key)}><Icon />{item.label}</button>;
-            })}
-          </nav>
-        </aside>
-        <section className="settings-content">
-          <div className="settings-content-header">
-            <h2>{nav.find((item) => item.key === section)?.label}</h2>
-            <IconButton label="关闭设置" onClick={props.onClose}><X /></IconButton>
-          </div>
-          {section === "general" && (
-            <SettingsSection title="外观" description="选择 GraphCoder Desktop 的显示方式">
-              <div className="theme-options">
-                <button className={props.theme === "light" ? "active" : ""} onClick={() => props.onTheme("light")}><Sun />浅色<Check /></button>
-                <button className={props.theme === "dark" ? "active" : ""} onClick={() => props.onTheme("dark")}><Moon />深色<Check /></button>
-              </div>
-            </SettingsSection>
-          )}
-          {section === "models" && (
-            <ProviderManager
-              models={props.models}
-              activeModel={props.activeModel}
-              onModel={props.onModel}
-              onChanged={props.onModelsChanged}
-              showToast={props.showToast}
-            />
-          )}
-          {section === "permissions" && (
-            <PermissionManager settings={props.settings} onSettings={props.onSettings} />
-          )}
-          {section === "memory" && (
-            <MemoryManager entries={props.memory} threadId={props.threadId} onChanged={props.onMemoryChanged} showToast={() => {}} />
-          )}
-          {section === "usage" && (
-            <SettingsSection title="当前会话用量" description="本地记录的模型调用统计">
-              <div className="usage-grid">
-                <div><strong>{formatNumber(props.usage.total_tokens)}</strong><span>Tokens</span></div>
-                <div><strong>{props.usage.calls}</strong><span>模型调用</span></div>
-                <div><strong>${props.usage.cost.toFixed(4)}</strong><span>估算成本</span></div>
-              </div>
-            </SettingsSection>
-          )}
-          {section === "about" && (
-            <SettingsSection title="GraphCoder Desktop" description="多 Agent 编程工作台">
-              <div className="about-mark"><Sparkles /><strong>GraphCoder</strong><span>Version 1.0.0</span></div>
-              <p className="settings-paragraph">界面与交互参考 Maka Agent，GraphCoder Runtime、数据和工具执行链由本项目提供。</p>
-            </SettingsSection>
-          )}
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function ProviderManager(props: {
-  models: ModelInfo[];
-  activeModel: string;
-  onModel: (id: string) => void;
-  onChanged: () => Promise<void>;
-  showToast: (message: string) => void;
-}) {
-  const EMPTY_PROVIDER: ProviderInput = {
-    name: "",
-    kind: "openai-compatible",
-    model: "",
-    base_url: "",
-    api_key: "",
-    api_key_env: "",
-    temperature: 0.7,
-    max_tokens: 8192,
-  };
-  const [form, setForm] = useState<ProviderInput>(EMPTY_PROVIDER);
-  const [saving, setSaving] = useState(false);
-  const [fetching, setFetching] = useState(false);
-
-  const normalize = (input: ProviderInput): ProviderInput => {
-    const next = { ...input };
-    if (next.kind === "anthropic" || next.kind === "gemini") {
-      next.base_url = "";
-    }
-    return next;
-  };
-
-  const save = async () => {
-    const target = normalize(form);
-    if (!target.name.trim() || !target.model.trim()) return;
-    setSaving(true);
-    try {
-      const provider = await api.upsertProvider({
-        ...target,
-      });
-      await props.onChanged();
-      await props.onModel(provider.id);
-      setForm({ ...EMPTY_PROVIDER, kind: target.kind });
-      props.showToast(`已保存模型连接: ${provider.name} (${target.model})`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const fetchModels = async () => {
-    const target = normalize(form);
-    if (!target.name.trim() || !target.model.trim() || !target.base_url) {
-      props.showToast("请先填写连接名称、模型名称和 Base URL");
-      return;
-    }
-    setFetching(true);
-    try {
-      const provider = await api.upsertProvider({
-        ...target,
-      });
-      await props.onChanged();
-      await props.onModel(provider.id);
-      props.showToast(`已保存并抓取模型列表: ${provider.name}`);
-    } catch (reason) {
-      props.showToast(`抓取模型列表失败: ${reason instanceof Error ? reason.message : reason}`);
-    } finally {
-      setFetching(false);
-    }
-  };
-
-  const pickModel = (model: ModelInfo) => {
-    setForm({
-      ...form,
-      id: model.id,
-      name: model.name,
-      kind: model.kind,
-      model: model.model,
-      base_url: model.base_url || "",
-      api_key: "",
-      api_key_env: "",
-      temperature: model.temperature ?? 0.7,
-      max_tokens: model.max_tokens ?? 8192,
-    });
-  };
-
-  const remove = async (model: ModelInfo) => {
-    if (!window.confirm(`删除模型连接“${model.name}”？`)) return;
-    await api.deleteProvider(model.id);
-    await props.onChanged();
-    props.showToast(`已删除模型连接: ${model.name}`);
-  };
-
-  return (
-    <SettingsSection title="模型连接" description="选择内置预设，或添加可独立使用的模型连接">
-      <div className="provider-list">
-        {props.models.map((model) => (
-          <div key={model.id} className={props.activeModel === model.id ? "provider-row active" : "provider-row"}>
-            <button onClick={() => pickModel(model)}>
-              <span className="provider-icon"><Bot /></span>
-              <span><strong>{model.name}</strong><small>{model.model} · {model.kind}</small></span>
-              <span className={`connection-dot ${model.has_key || model.kind === "ollama" ? "ready" : ""}`} />
-              {props.activeModel === model.id && <Check />}
-            </button>
-            {model.custom && <IconButton label="删除模型连接" onClick={() => remove(model)}><Trash2 /></IconButton>}
-          </div>
-        ))}
-      </div>
-      <div className="provider-form">
-        <input value={form.name} placeholder="连接名称" onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        <select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
-          <option value="openai-compatible">OpenAI Compatible</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="gemini">Gemini</option>
-          <option value="ollama">Ollama</option>
-        </select>
-        <input value={form.model} placeholder="模型名称" onChange={(event) => setForm({ ...form, model: event.target.value })} />
-        <input value={form.base_url} placeholder="API Base URL" disabled={form.kind === "anthropic" || form.kind === "gemini"} onChange={(event) => setForm({ ...form, base_url: event.target.value })} />
-        <input type="password" value={form.api_key} placeholder="API Key（可选）" onChange={(event) => setForm({ ...form, api_key: event.target.value })} />
-        <input value={form.api_key_env} placeholder="API Key 环境变量名（可选）" onChange={(event) => setForm({ ...form, api_key_env: event.target.value })} />
-        <input type="number" value={String(form.temperature ?? 0.7)} placeholder="Temperature" onChange={(event) => setForm({ ...form, temperature: Number(event.target.value) })} />
-        <input type="number" value={String(form.max_tokens ?? 8192)} placeholder="Max Tokens" onChange={(event) => setForm({ ...form, max_tokens: Number(event.target.value) })} />
-        <button disabled={saving || fetching || !form.name.trim() || !form.model.trim()} onClick={save}><Save />{saving ? "保存中" : "保存连接"}</button>
-        <button disabled={fetching || !form.base_url || form.kind !== "openai-compatible"} onClick={fetchModels}><ListTodo />抓取模型列表</button>
-      </div>
-    </SettingsSection>
-  );
-}
-
-function PermissionManager(props: {
-  settings: SettingsInfo;
-  onSettings: (settings: SettingsInfo) => void;
-}) {
-  const [form, setForm] = useState({ kind: "command", pattern: "", action: "ask" });
-  const refresh = async () => {
-    const next = await api.getSettings();
-    props.onSettings(next);
-  };
-  return (
-    <SettingsSection title="权限规则" description="控制命令、工具和目录在执行前的审批方式">
-      <div className="permission-form">
-        <select value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })}>
-          <option value="command">命令</option><option value="tool">工具</option><option value="dir">目录</option>
-        </select>
-        <input value={form.pattern} onChange={(event) => setForm({ ...form, pattern: event.target.value })} placeholder="匹配规则，例如 git push*" />
-        <select value={form.action} onChange={(event) => setForm({ ...form, action: event.target.value })}>
-          <option value="ask">询问</option><option value="allow">允许</option><option value="deny">拒绝</option>
-        </select>
-        <button disabled={!form.pattern.trim()} onClick={async () => { await api.addPermission(form.kind, form.pattern.trim(), form.action); setForm({ ...form, pattern: "" }); await refresh(); }}><Plus />添加</button>
-      </div>
-      <div className="permission-rules">
-        {props.settings.permissions.map((rule: PermissionRule) => (
-          <div key={rule.id}><span className={`rule-action ${rule.action}`}>{actionName(rule.action)}</span><code>{rule.kind}: {rule.pattern}</code><IconButton label="删除规则" onClick={async () => { await api.removePermission(rule.id); await refresh(); }}><Trash2 /></IconButton></div>
-        ))}
-        {!props.settings.permissions.length && <EmptyPanel icon={<ShieldCheck />} text="还没有自定义权限规则" />}
-      </div>
-    </SettingsSection>
-  );
-}
-
-function MemoryManager(props: {
-  entries: MemoryEntry[];
-  threadId: string;
-  onChanged: () => void;
-  showToast: (message: string) => void;
-  standalone?: boolean;
-}) {
-  const [key, setKey] = useState("");
-  const [value, setValue] = useState("");
-  const body = (
-    <>
-      <div className="memory-form">
-        <input value={key} onChange={(event) => setKey(event.target.value)} placeholder="名称" />
-        <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="希望 GraphCoder 记住的内容" />
-        <button disabled={!props.threadId || !key.trim() || !value.trim()} onClick={async () => { await api.memoryAdd(props.threadId, key.trim(), value.trim()); setKey(""); setValue(""); props.onChanged(); props.showToast("记忆已保存"); }}><Plus />添加</button>
-      </div>
-      <div className="memory-entries">
-        {props.entries.map((entry) => (
-          <div key={entry.id}><Brain /><span><strong>{entry.key}</strong><p>{entry.value}</p></span><IconButton label="删除记忆" onClick={async () => { await api.memoryDelete(entry.id); props.onChanged(); }}><Trash2 /></IconButton></div>
-        ))}
-        {!props.entries.length && <EmptyPanel icon={<Brain />} text="当前会话还没有记忆" />}
-      </div>
-    </>
-  );
-  if (props.standalone) return <div className="module-page"><PageHeading title="记忆" description="让 GraphCoder 在后续回合中保留重要上下文" />{body}</div>;
-  return <SettingsSection title="会话记忆" description="保存在本机，仅供当前会话的 Agent 使用">{body}</SettingsSection>;
-}
-
-function SettingsSection(props: { title: string; description: string; children: React.ReactNode }) {
-  return <div className="settings-section"><header><h3>{props.title}</h3><p>{props.description}</p></header>{props.children}</div>;
-}
-
-function PageHeading({ title, description }: { title: string; description: string }) {
-  return <header className="page-heading"><h1>{title}</h1><p>{description}</p></header>;
-}
-
-function EmptyPanel({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return <div className="empty-panel">{icon}<span>{text}</span></div>;
-}
-
-function IconButton(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
-  const { label, className = "", children, ...rest } = props;
-  return <button className={`icon-button ${className}`} title={label} aria-label={label} {...rest}>{children}</button>;
-}
-
 interface NotificationContext {
   setItems: React.Dispatch<React.SetStateAction<UIItem[]>>;
   itemRef: React.MutableRefObject<Record<string, UIItem>>;
@@ -1501,4 +1221,3 @@ function errorMessage(reason: unknown, fallback: string) { return reason instanc
 function roleName(role?: string) { const names: Record<string, string> = { pm: "产品经理", architect: "架构师", developer: "开发者", reviewer: "代码审查", qa: "质量验证", assistant: "GraphCoder" }; return names[role || "assistant"] || role || "GraphCoder"; }
 function toolName(name?: string) { const names: Record<string, string> = { read_file: "读取文件", write_file: "写入文件", apply_patch: "应用修改", list_files: "浏览文件", search_files: "搜索代码", shell: "运行命令", web_search: "搜索网络" }; return names[name || ""] || name || "工具调用"; }
 function statusName(status: string) { const names: Record<string, string> = { pending: "等待中", running: "运行中", completed: "已完成", error: "失败", cancelled: "已停止" }; return names[status] || status; }
-function actionName(action: string) { return ({ allow: "允许", ask: "询问", deny: "拒绝" } as Record<string, string>)[action] || action; }

@@ -84,3 +84,22 @@ def test_engine_tool_loop_writes_file(tmp_path: Path) -> None:
     kinds = [e[1].get("kind") for e in events]
     assert "tool_call" in kinds
     assert "agent_message" in kinds
+
+
+def test_refresh_tools_respects_option_toggles(tmp_path: Path) -> None:
+    engine = _engine(tmp_path)
+
+    def names() -> set[str]:
+        return {t.name for t in engine.tools}
+
+    assert "run_shell" in names() and "web_search" in names()
+
+    engine.options["enable_shell"] = False
+    engine.options["enable_web"] = False
+    engine.refresh_tools()
+    assert "run_shell" not in names() and "web_search" not in names()
+
+    engine.options["enable_shell"] = True
+    engine.options["enable_web"] = True
+    engine.refresh_tools()
+    assert "run_shell" in names() and "fetch_url" in names()

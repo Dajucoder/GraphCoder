@@ -16,6 +16,15 @@ def test_builtin_presets_include_major_providers() -> None:
     assert {"openai", "anthropic", "gemini", "ollama", "deepseek"} <= ids
 
 
+def test_builtin_presets_include_grok_and_siliconflow() -> None:
+    presets = {p.id: p for p in BUILTIN_PRESETS}
+    assert "grok" in presets
+    assert presets["grok"].api_key_env == "XAI_API_KEY"
+    assert presets["grok"].base_url == "https://api.x.ai/v1"
+    assert "siliconflow" in presets
+    assert presets["siliconflow"].api_key_env == "SILICONFLOW_API_KEY"
+
+
 def test_resolve_provider_prefers_active(monkeypatch) -> None:
     monkeypatch.delenv("API_KEY", raising=False)
     cfg = resolve_provider(active_id="gemini")

@@ -5,11 +5,33 @@ All notable changes to GraphCoder will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.1.0] — 2026-08-06
+
+### Added
+- Add a full-screen, Maka-style settings center with grouped sidebar navigation:
+  General (General/Appearance), AI & Integrations (Models, Usage, Memory, Daily
+  Review, Web Search beta), and System (Data, Permissions, Health, About).
+- Add a Maka-style Models page with connected providers (default badge), an
+  "Add connection" dialog with Recommended/Account/Plan/API/Aggregator/Local
+  tabs, search, provider catalog, and a connection-test probe.
+- Add app-server RPCs `providers.test`, `usage.daily`, `health.summary`, and
+  `data.summary` to power the new settings pages.
+- Add `AgentEngine.refresh_tools()` so toggling shell/web tools in settings
+  applies immediately without a restart.
+- Add built-in provider presets for xAI Grok (`XAI_API_KEY`) and SiliconFlow
+  (`SILICONFLOW_API_KEY`).
+
+### Changed
+- `models/list` now also reports the provider configured through environment
+  variables (`API_KEY` / `ACTIVE_PROVIDER`) alongside built-in presets and
+  custom providers.
 
 ### Fixed
 - Chat system prompt now answers greetings and self-introduction requests
   directly instead of deflecting with "state your task first".
+- Ignore placeholder values for `GRAPHCODER_HOME` and `GRAPHCODER_RUNTIME_PYTHON`
+  when dotenv mis-parses inline comments (values starting with `#`), and comment
+  those keys out in `.env.example`.
 
 ## [2.0.1] — 2026-08-05
 
